@@ -43,6 +43,16 @@ struct GemmBasicTypeConfig<ck_tile::half_t>
     // ToDo: Add more bias config to support different categories of GEMM.
 };
 
+template <>
+struct GemmBasicTypeConfig<float>
+{
+    using ADataType   = float;
+    using BDataType   = float;
+    using AccDataType = float;
+    using CDataType   = float;
+    // ToDo: Add more bias config to support different categories of GEMM.
+};
+
 template <typename T>
 struct DataTypeTraits;
 
@@ -65,6 +75,7 @@ struct DataTypeTraits<ck_tile::half_t>
 };
 
 using Types = GemmBasicTypeConfig<ck_tile::half_t>;
+//using Types = GemmBasicTypeConfig<float>;
 
 // Specific type aliases for easy access
 using ADataType   = Types::ADataType;
@@ -75,9 +86,9 @@ using CDataType   = Types::CDataType;
 auto create_args(int argc, char* argv[])
 {
     ck_tile::ArgParser arg_parser;
-    arg_parser.insert("m", "3840", "m dimension")
-        .insert("n", "4096", "n dimension")
-        .insert("k", "2048", "k dimension")
+    arg_parser.insert("m", "128", "m dimension")
+        .insert("n", "128", "n dimension")
+        .insert("k", "64", "k dimension")
         .insert("a_layout", "R", "A tensor data layout - Row by default")
         .insert("b_layout", "R", "B tensor data layout - Row by default")
         .insert("c_layout", "R", "C tensor data layout - Row by default")
@@ -86,8 +97,8 @@ auto create_args(int argc, char* argv[])
         .insert("stride_c", "0", "Tensor C stride")
         .insert("v", "2", "0. No validation, 1. Validation on CPU, 2. Validation on GPU")
         .insert("prec", "fp16", "data type. fp16/bf16/fp8/bf8")
-        .insert("warmup", "50", "number of iterations before benchmark the kernel")
-        .insert("repeat", "100", "number of iterations to benchmark the kernel")
+        .insert("warmup", "1", "number of iterations before benchmark the kernel")
+        .insert("repeat", "2", "number of iterations to benchmark the kernel")
         .insert("timer", "gpu", "gpu:gpu timer, cpu:cpu timer")
         .insert("split_k", "1", "splitK value");
 

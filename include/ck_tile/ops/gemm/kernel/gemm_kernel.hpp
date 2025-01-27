@@ -52,8 +52,12 @@ struct GemmHostArgs : public GemmProblem
 
     const void* a_ptr;
     const void* b_ptr;
+    const void* b_shuffle_ptr;
     void* c_ptr;
     index_t k_batch;
+    void* dbg_int_ptr;
+    void* dbg_fp32_ptr;
+    void* dbg_f168_ptr;
 };
 
 template <typename TilePartitioner_, typename GemmPipeline_, typename EpiloguePipeline_>
@@ -86,6 +90,7 @@ struct GemmKernel
     {
         const void* a_ptr;
         const void* b_ptr;
+        const void* b_shuffle_ptr;
         void* c_ptr;
         index_t M;
         index_t N;
@@ -94,12 +99,16 @@ struct GemmKernel
         index_t stride_B;
         index_t stride_C;
         index_t KBatch;
+        void* dbg_int_ptr;
+        void* dbg_fp32_ptr;
+        void* dbg_f168_ptr;
     };
 
     CK_TILE_HOST static constexpr GemmKernelArgs MakeKernelArgs(const GemmHostArgs& hostArgs)
     {
         return GemmKernelArgs{hostArgs.a_ptr,
                               hostArgs.b_ptr,
+                              hostArgs.b_shuffle_ptr,
                               hostArgs.c_ptr,
                               hostArgs.M,
                               hostArgs.N,
@@ -107,7 +116,11 @@ struct GemmKernel
                               hostArgs.stride_A,
                               hostArgs.stride_B,
                               hostArgs.stride_C,
-                              hostArgs.k_batch};
+                              hostArgs.k_batch,
+                              hostArgs.dbg_int_ptr,
+                              hostArgs.dbg_fp32_ptr,
+                              hostArgs.dbg_f168_ptr
+                              };
     }
 
     CK_TILE_HOST_DEVICE static constexpr index_t GetSmemSize()
@@ -456,6 +469,38 @@ struct GemmKernel
 
     CK_TILE_DEVICE void operator()(GemmKernelArgs kargs) const
     {
+#if 1
+        if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
+        {
+            printf("[KERNEL] FlatmmUkKernel =====\n");
+            printf("[KERNEL] blockDim: [%d, %d], gridDim: [%d, %d]\n",
+            static_cast<int>(blockDim.x),
+            static_cast<int>(blockDim.y),
+            static_cast<int>(gridDim.x),
+            static_cast<int>(gridDim.y));
+            printf("[KERNEL] lds = %.3f (KB)\n", GetSmemSize() / 1024.0f);
+        }
+
+        [[maybe_unused]] uint32_t tidx = threadIdx.x; // 0~255
+        [[maybe_unused]] uint32_t tidy = threadIdx.y; // 0~0
+        [[maybe_unused]] uint32_t bidx = blockIdx.x;  // 0~1
+        [[maybe_unused]] uint32_t bidy = blockIdx.y;  // 0~51
+        [[maybe_unused]] uint32_t bdmx = blockDim.x;  // 256
+        [[maybe_unused]] uint32_t bdmy = blockDim.y;  // 1
+        [[maybe_unused]] uint32_t gdmx = gridDim.x;   // 2
+        [[maybe_unused]] uint32_t gdmy = gridDim.y; // 52
+        [[maybe_unused]] uint32_t gid = ((bdmx * bdmy) * gdmx) * bidy 
+                                        + (bdmx * bdmy) * bidx 
+                                        + bdmx * tidy
+                                        + tidx;
+
+        [[maybe_unused]]int * dbg_int = static_cast<int*>(kargs.dbg_int_ptr);
+        [[maybe_unused]]float * dbg_fp32 = static_cast<float*>(kargs.dbg_fp32_ptr);
+        [[maybe_unused]]short * dbg_fp168 = static_cast<short*>(kargs.dbg_f168_ptr);
+
+        dbg_int[gid] = -1;
+        dbg_fp32[gid] = -1.0f;
+#endif
         const auto [iM, iN] = TilePartitioner::GetOutputTileIndex(blockIdx.x, blockIdx.y);
         const index_t i_m   = __builtin_amdgcn_readfirstlane(iM * TilePartitioner::MPerBlock);
         const index_t i_n   = __builtin_amdgcn_readfirstlane(iN * TilePartitioner::NPerBlock);
