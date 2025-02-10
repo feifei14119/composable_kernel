@@ -5,5 +5,5 @@ list(APPEND EXAMPLE_FLATMM_COMPILE_OPTIONS -Wno-undefined-func-template -Wno-flo
 list(APPEND EXAMPLE_FLATMM_COMPILE_OPTIONS -Wno-unused-variable -Wno-unused-parameter)
 list(APPEND EXAMPLE_FLATMM_COMPILE_OPTIONS -Wno-unused-local-typedef)
 #list(APPEND EXAMPLE_FLATMM_COMPILE_OPTIONS -ggdb -g -O0 -v -save-temps)
-list(APPEND EXAMPLE_FLATMM_COMPILE_OPTIONS -DFEIFEI_DEBUG=1)
+list(APPEND EXAMPLE_FLATMM_COMPILE_OPTIONS -DFEIFEI_DEBUG=1 -DDEBUG_CNT=64)
 target_compile_options(tile_example_flatmm_basic PRIVATE ${EXAMPLE_FLATMM_COMPILE_OPTIONS})

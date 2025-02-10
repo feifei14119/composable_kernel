@@ -183,9 +183,9 @@ int run_flatmm_example_with_layouts(int argc,
     ck_tile::DeviceMem c_m_n_dev_buf(c_m_n_dev_result.get_element_space_size_in_bytes());
 
 #if FEIFEI_DEBUG
-    ck_tile::HostTensor<int> dbg_int({M * N * 64});
-    ck_tile::HostTensor<float> dbg_fp32({M * N * 64});
-    ck_tile::HostTensor<ADataType> dbg_f168({M * N * 64});
+    ck_tile::HostTensor<int> dbg_int({M * N * DEBUG_CNT});
+    ck_tile::HostTensor<float> dbg_fp32({M * N * DEBUG_CNT});
+    ck_tile::HostTensor<ADataType> dbg_f168({M * N * DEBUG_CNT});
 
     ck_tile::DeviceMem dbg_int_buf(dbg_int.get_element_space_size_in_bytes());
     ck_tile::DeviceMem dbg_fp32_buf(dbg_fp32.get_element_space_size_in_bytes());
@@ -362,7 +362,7 @@ int run_flatmm_example_with_layouts(int argc,
     int GridDimY  = 1;
     int BlockDimX = 64;
     int BlockDimY = 4;
-    int DbgCnt    = 64;
+    int DbgCnt    = DEBUG_CNT;
     int BlockSize = BlockDimX * BlockDimY;
     // a_host
     {

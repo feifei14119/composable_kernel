@@ -85,7 +85,7 @@ struct FlatmmKernel
 
     CK_TILE_HOST static constexpr auto GridSize(index_t M, index_t N, index_t KBatch)
     {
-        return TilePartitioner::GridSize(M, N);
+        return TilePartitioner::GridSize(M, N); // feifei TODO: split K here
         // return dim3(TilePartitioner::GridSize(M, N), 1, KBatch);
     }
 
@@ -178,7 +178,7 @@ struct FlatmmKernel
 
         index_t a_k_split_offset;
         index_t b_k_split_offset;
-        index_t splitted_k;
+        index_t splitted_k; // problem K after splitted
     };
 
     CK_TILE_HOST static bool IsSupportedArgument(const FlatmmKernelArgs& kargs)
@@ -473,7 +473,7 @@ struct FlatmmKernel
                                          const BDataType* b_ptr,
                                          int* dbg_int,
                                          float* dbg_fp32,
-                                         short* dbg_f168
+                                         void* dbg_f168
 #endif
     )
     {
@@ -481,12 +481,55 @@ struct FlatmmKernel
         // Create Flatmm tensor views, pad views and tile windows
         const auto& gemm_tensor_views_tuple = MakeGemmTensorViews<DstInMemOp>(
             a_ptr, b_shuffle_ptr, c_ptr, kargs, splitk_batch_offset);
-        // origin layout
-        // const auto& gemm_tensor_views_tuple =
-        //    MakeGemmTensorViews<DstInMemOp>(a_ptr, b_ptr, c_ptr, kargs, splitk_batch_offset);
+        // Debug origin layout
+        // const auto& gemm_tensor_views_tuple = MakeGemmTensorViews<DstInMemOp>(
+        //  a_ptr, b_ptr, c_ptr, kargs, splitk_batch_offset);
 
         const auto& gemm_pad_views = MakeGemmPadViews(gemm_tensor_views_tuple);
-        auto gemm_tile_windows     = MakeGemmTileWindows(gemm_pad_views, block_idx_m, block_idx_n);
+
+        const auto& gemm_tile_windows =
+            MakeGemmTileWindows(gemm_pad_views, block_idx_m, block_idx_n);
+
+
+#if FEIFEI_DEBUG
+        ////////////////////////////////////////////////////////
+        const auto& a_gemm_tensor_views = gemm_tensor_views_tuple.at(I0);   // tensor_view
+        const auto& a_gemm_tensor_desc = a_gemm_tensor_views.desc_;         // tensor_descriptor
+        const auto& a_gemm_buff_views = a_gemm_tensor_views.buf_;           // buffer_view
+        if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
+        {
+            printf("[KERNEL] a_gemm_tensor_view: size = %ld, len = [%d, %d], top = [%d, %d], upper = %d, lower = %d\n",
+                    a_gemm_tensor_desc.get_element_space_size(),
+                    a_gemm_tensor_desc.get_length(I0), a_gemm_tensor_desc.get_length(I1),
+                    a_gemm_tensor_desc.get_top_dimension_hidden_ids()[0], a_gemm_tensor_desc.get_top_dimension_hidden_ids()[1],
+                    a_gemm_tensor_desc.get_upper_dimension_hidden_idss()(I0)[0],
+                    a_gemm_tensor_desc.get_lower_dimension_hidden_idss()(I0)[0]
+                   );
+        }
+
+        const auto& a_pad_tensor_views = gemm_pad_views.at(I0);     // tensor_view
+        const auto& a_pad_tensor_desc = a_pad_tensor_views.desc_;   // tensor_descriptor
+        const auto& a_pad_buff_views = a_pad_tensor_views.buf_;     // buffer_view
+        if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
+        {
+            printf("[KERNEL] a_pad_tensor_view:  size = %ld, len = [%d, %d], top = [%d, %d], upper = %d, lower = %d\n",
+                    a_pad_tensor_desc.get_element_space_size(),
+                    a_pad_tensor_desc.get_length(I0), a_pad_tensor_desc.get_length(I1),
+                    a_pad_tensor_desc.get_top_dimension_hidden_ids()[0], a_pad_tensor_desc.get_top_dimension_hidden_ids()[1],
+                    a_pad_tensor_desc.get_upper_dimension_hidden_idss()(I0)[0],
+                    a_pad_tensor_desc.get_lower_dimension_hidden_idss()(I0)[0]
+                   );
+        }
+
+        const auto& a_tile_win = gemm_tile_windows.at(I0);     // tile_window_with_static_lengths
+        if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
+        {
+            printf("[KERNEL] a_gemm_tile_window: dim_num = %d\n",
+                    a_tile_win.get_num_of_dimension()
+                   );
+        }
+        ////////////////////////////////////////////////////////
+#endif
 
         const index_t num_loop = TilePartitioner::GetLoopNum(splitk_batch_offset.splitted_k);
 
@@ -555,11 +598,14 @@ struct FlatmmKernel
 
         int* dbg_int    = static_cast<int*>(kargs.dbg_int_ptr);
         float* dbg_fp32 = static_cast<float*>(kargs.dbg_fp32_ptr);
-        short* dbg_f168 = static_cast<short*>(kargs.dbg_f168_ptr);
+        half_t* dbg_f16 = static_cast<half_t*>(kargs.dbg_f168_ptr);
 
-        dbg_int[gid]  = 1;
-        dbg_fp32[gid] = 1.0f;
-        dbg_f168[gid] = ck_tile::type_convert<ck_tile::half_t>(1.0f);
+        for(int i = 0; i < DEBUG_CNT; i++)
+        {
+            dbg_int[gid * DEBUG_CNT + i]  = 0;
+            dbg_fp32[gid * DEBUG_CNT + i] = .0f;
+            dbg_f16[gid * DEBUG_CNT + i]  = ck_tile::type_convert<ck_tile::half_t>(0.f);
+        }
 #endif
 
         const auto [iM, iN] = TilePartitioner::GetOutputTileIndex(blockIdx.x, blockIdx.y);
@@ -592,7 +638,7 @@ struct FlatmmKernel
                       b_ptr,
                       dbg_int,
                       dbg_fp32,
-                      dbg_f168
+                      kargs.dbg_f168_ptr
 #endif
             );
         }
@@ -611,7 +657,7 @@ struct FlatmmKernel
                                                          b_ptr,
                                                          dbg_int,
                                                          dbg_fp32,
-                                                         dbg_f168
+                                                         kargs.dbg_f168_ptr
 #endif
             );
         }
