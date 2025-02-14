@@ -55,14 +55,13 @@ struct BlockFlatmmASmemBSmemCRegV1
         return c_block_tensor;
     }
 
-#if 1
+#if 0
     // C += A * B
     // template <typename CBlockTensor, typename ABlockWindow, typename BBlockWindow>
-    template <typename ABlockWindow>
-    CK_TILE_DEVICE void operator()(const ABlockWindow& a_block_window
+    template <typename ABlockWindow, typename BBlockWindow>
+    CK_TILE_DEVICE void operator()(const ABlockWindow& a_block_window, const BBlockWindow& b_block_window
 #if FEIFEI_DEBUG
                                    ,
-                                   const BDataType* b_ptr,
                                    int* dbg_int,
                                    float* dbg_fp32,
                                    void* dbg_f168
@@ -101,14 +100,12 @@ struct BlockFlatmmASmemBSmemCRegV1
         */
 
         constexpr index_t MPerBlock = ABlockWindow{}.get_window_lengths()[number<0>{}];
-        // constexpr index_t NPerBlock = BBlockWindow{}.get_window_lengths()[number<0>{}];
+        constexpr index_t NPerBlock = BBlockWindow{}.get_window_lengths()[number<0>{}];
         constexpr index_t KPerBlock = ABlockWindow{}.get_window_lengths()[number<1>{}];
 
-        /*
         static_assert(MPerBlock == BlockGemmShape::kM && NPerBlock == BlockGemmShape::kN &&
                           KPerBlock == BlockGemmShape::kK,
                       "wrong!");
-        */
 
         constexpr auto config = BlockPolicy::template GetWarpGemmMWarpNWarp<Problem>();
         using WG              = remove_cvref_t<decltype(config.template at<0>())>;
@@ -117,11 +114,11 @@ struct BlockFlatmmASmemBSmemCRegV1
         constexpr index_t NWarp = config.template at<2>();
 
         constexpr index_t MIterPerWarp = MPerBlock / (MWarp * WG::kM);
-        // constexpr index_t NIterPerWarp = NPerBlock / (NWarp * WG::kN);
+        constexpr index_t NIterPerWarp = NPerBlock / (NWarp * WG::kN);
         constexpr index_t KIterPerWarp = KPerBlock / WG::kK;
 
         constexpr index_t MPerBlockPerIter = MPerBlock / MIterPerWarp;
-        // constexpr index_t NPerBlockPerIter = NPerBlock / NIterPerWarp;
+        constexpr index_t NPerBlockPerIter = NPerBlock / NIterPerWarp;
         constexpr index_t KPerBlockPerIter = KPerBlock / KIterPerWarp;
 
         const index_t iMWarp = get_warp_id() / NWarp;
@@ -133,6 +130,7 @@ struct BlockFlatmmASmemBSmemCRegV1
             make_tuple(number<WG::kM>{}, number<WG::kK>{}),
             a_block_window.get_window_origin() + multi_index<2>{iMWarp * WG::kM, 0},
             make_static_tile_distribution(typename WG::AWarpDstrEncoding{}));
+            
 
         statically_indexed_array<
             statically_indexed_array<decltype(a_warp_window_tmp), KIterPerWarp>,
@@ -151,7 +149,29 @@ struct BlockFlatmmASmemBSmemCRegV1
         // Warp loop in block:
         constexpr index_t kIter  = 0;
         constexpr index_t mIter  = 0;
-        const auto a_warp_tensor = load_tile(a_warp_windows(number<mIter>{})(number<kIter>{}));
+        const auto a_warp_tensor = load_tile(a_warp_window_tmp);
+
+#if FEIFEI_DEBUG
+        if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
+        {
+            printf("[BLOCK ] WG::kM = %d, WG::kM = %d, WG::kK = %d, WG::kKPerThread = %d\n", WG::kM, WG::kN, WG::kK, WG::kKPerThread);
+            printf("[BLOCK ] MIterPerWarp = %d, NIterPerWarp = %d, KIterPerWarp = %d\n", MIterPerWarp, NIterPerWarp, KIterPerWarp);
+        }
+
+        // debug A lds read
+        int warp_tile_size_per_thread = a_warp_tensor.get_thread_buffer_size();
+        if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
+        {
+            printf("[BLOCK ] warp_tile_size_per_thread = %d\n", warp_tile_size_per_thread);
+        }
+        for(auto i = 0; i < warp_tile_size_per_thread; i++)
+        {
+            dbg_f16[gid * DEBUG_CNT + i] = a_warp_tensor.get_thread_buffer()[i];
+        }
+
+        return ;
+#endif
+
 
 #if 1
         // feifei TODO: Implement gemm here

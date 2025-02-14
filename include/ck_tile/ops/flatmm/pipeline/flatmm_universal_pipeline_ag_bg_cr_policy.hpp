@@ -8,6 +8,7 @@
 
 namespace ck_tile {
 
+#if 0
 // UniversalGemm Policy
 struct UniversalFlatmmPipelineAgBgCrPolicy
 {
@@ -16,6 +17,8 @@ struct UniversalFlatmmPipelineAgBgCrPolicy
     static constexpr auto I2 = number<2>{};
 
     static constexpr bool TransposeC = true;
+    static constexpr auto ATileAccessPattern = tile_distribution_pattern::thread_raked;
+    static constexpr auto BTileAccessPattern = tile_distribution_pattern::thread_raked;
 
     template <typename Problem, typename DataType, index_t MNPerBlock>
     CK_TILE_HOST_DEVICE static constexpr auto GetVectorLoadSize()
@@ -177,89 +180,6 @@ struct UniversalFlatmmPipelineAgBgCrPolicy
     }
 
     template <typename Problem>
-    CK_TILE_HOST_DEVICE static constexpr auto MakeADramTileDistribution()
-    {
-        using ADataType = remove_cvref_t<typename Problem::ADataType>;
-        using ALayout   = remove_cvref_t<typename Problem::ALayout>;
-
-        constexpr index_t BlockSize = Problem::kBlockSize;
-
-        constexpr index_t MPerBlock = Problem::BlockGemmShape::kM;
-        constexpr index_t KPerBlock = Problem::BlockGemmShape::kK;
-
-        if constexpr(std::is_same_v<ALayout, ck_tile::tensor_layout::gemm::ColumnMajor>)
-        {
-            constexpr index_t M1           = Problem::VectorLoadSize / sizeof(ADataType);
-            constexpr index_t M0           = MPerBlock / M1;
-            constexpr index_t total_pixels = MPerBlock * KPerBlock / BlockSize;
-            static_assert(total_pixels % M1 == 0);
-            constexpr index_t K3    = total_pixels / M1;
-            constexpr index_t KPack = GetVectorLoadSize<Problem, ADataType, MPerBlock>();
-            static_assert(KPack % K3 == 0);
-            constexpr index_t K2 = KPack / K3;
-            if constexpr(get_warp_size() % (K2 * M0) == 0)
-            {
-                constexpr index_t K1 = get_warp_size() / (K2 * M0);
-                constexpr index_t K0 = BlockSize / get_warp_size();
-                static_assert(KPerBlock == K0 * K1 * K2 * K3);
-                return make_static_tile_distribution(
-                    tile_distribution_encoding<sequence<1>,
-                                               tuple<sequence<M0, M1>, sequence<K0, K1, K2, K3>>,
-                                               tuple<sequence<2>, sequence<2, 1, 2>>,
-                                               tuple<sequence<0>, sequence<1, 0, 2>>,
-                                               sequence<2, 1>,
-                                               sequence<3, 1>>{});
-            }
-            else
-            {
-                constexpr index_t K1   = (K2 * M0) / get_warp_size();
-                constexpr index_t K2_m = K2 / K1;
-                constexpr index_t K0   = BlockSize / get_warp_size() / K1;
-                static_assert(KPerBlock == K0 * K1 * K2_m * K3);
-                return make_static_tile_distribution(
-                    tile_distribution_encoding<sequence<1>,
-                                               tuple<sequence<M0, M1>, sequence<K0, K1, K2_m, K3>>,
-                                               tuple<sequence<2, 2>, sequence<1, 2>>,
-                                               tuple<sequence<0, 1>, sequence<0, 2>>,
-                                               sequence<2, 1>,
-                                               sequence<3, 1>>{});
-            }
-        }
-        else
-        {
-            constexpr index_t K1 = Problem::VectorLoadSize / sizeof(ADataType);
-            constexpr index_t K0 = KPerBlock / K1;
-            constexpr index_t M2 = get_warp_size() / K0;
-            if constexpr(get_warp_size() % (M2 * K0) == 0)
-            {
-                constexpr index_t M1 = BlockSize / get_warp_size();
-                static_assert(M2 != 0, "M2 is zero, which will lead to a division by zero error.");
-                static_assert(M1 != 0, "M1 is zero, which will lead to a division by zero error.");
-                constexpr index_t M0 = MPerBlock / (M2 * M1);
-                return make_static_tile_distribution(
-                    tile_distribution_encoding<sequence<1>,
-                                               tuple<sequence<M0, M1, M2>, sequence<K0, K1>>,
-                                               tuple<sequence<1>, sequence<1, 2>>,
-                                               tuple<sequence<1>, sequence<2, 0>>,
-                                               sequence<1, 2>,
-                                               sequence<0, 1>>{});
-            }
-            else
-            {
-                constexpr index_t M0 = BlockSize / get_warp_size();
-                constexpr index_t M1 = MPerBlock / (M2 * M0);
-                return make_static_tile_distribution(
-                    tile_distribution_encoding<sequence<1>,
-                                               tuple<sequence<M0, M1, M2>, sequence<K0, K1>>,
-                                               tuple<sequence<1>, sequence<1, 2>>,
-                                               tuple<sequence<0>, sequence<2, 0>>,
-                                               sequence<1, 2>,
-                                               sequence<1, 1>>{});
-            }
-        }
-    }
-
-    template <typename Problem>
     CK_TILE_HOST_DEVICE static constexpr auto MakeBDramTileDistribution()
     {
         using BDataType = remove_cvref_t<typename Problem::BDataType>;
@@ -310,18 +230,25 @@ struct UniversalFlatmmPipelineAgBgCrPolicy
         }
         else
         {
-
-            constexpr index_t K1 = Problem::VectorLoadSize / sizeof(BDataType);
-            constexpr index_t K0 = KPerBlock / K1;
-            constexpr index_t N2 = get_warp_size() / K0;
+            constexpr index_t K1 = Problem::VectorLoadSize / sizeof(BDataType); // dwordx4 load B elem cnt
+            constexpr index_t K0 = KPerBlock / K1;                              // threads cnt in K dim
+            constexpr index_t N2 = get_warp_size() / K0;                        // threads cnt in N dim (per wave)
             // coalesce reading for each blocks
             if constexpr(get_warp_size() % (N2 * K0) == 0)
             {
-                constexpr index_t N1 = BlockSize / get_warp_size();
+                constexpr index_t N1 = BlockSize / get_warp_size();             // wave cnt in N dim (per block)
                 static_assert(N2 != 0, "N2 is zero, which will lead to a division by zero error.");
                 static_assert(N1 != 0, "N1 is zero, which will lead to a division by zero error.");
-                constexpr index_t N0 = NPerBlock / (N2 * N1);
-
+                constexpr index_t N0 = NPerBlock / (N2 * N1);                   // load repeat times in N dim
+#if FEIFEI_DEBUG
+                if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
+                {
+                    printf("[PIPELN] MakeBDramTileDistribution():\n");
+                    printf("[PIPELN] NPerBlock = %d, KPerBlock = %d, BperBlock = %d\n", NPerBlock, KPerBlock, NPerBlock*KPerBlock);
+                    printf("[PIPELN] BlockSize = %d, warp_size = %d, VectorLoadSize = %d\n", BlockSize, get_warp_size(), Problem::VectorLoadSize);
+                    printf("[PIPELN] K1 = %d, K0 = %d, N2 = %d, N1 = %d, N0 = %d\n", K1, K0, N2, N1, N0);
+                }
+#endif
                 return make_static_tile_distribution(
                     tile_distribution_encoding<sequence<1>,
                                                tuple<sequence<N0, N1, N2>, sequence<K0, K1>>,
@@ -345,6 +272,56 @@ struct UniversalFlatmmPipelineAgBgCrPolicy
                                                sequence<1, 1>>{});
             }
         }
+    }
+
+    template <typename Problem>
+    CK_TILE_HOST_DEVICE static constexpr auto MakeBFlatDramTileDistribution()
+    {
+        using BDataType = remove_cvref_t<typename Problem::BDataType>;
+        using BLayout   = remove_cvref_t<typename Problem::BLayout>;
+
+        using TileShape             = typename Problem::BlockGemmShape; // ck_tile::TileGemmShape
+        constexpr index_t BlockSize = Problem::kBlockSize;
+        constexpr index_t WaveSize  = get_warp_size();
+
+        constexpr index_t KPerTile = TileShape::kK;
+        constexpr index_t NPerTile = TileShape::kN;
+
+        constexpr index_t KBPerLoad = Problem::VectorLoadSize / sizeof(BDataType);      // dwordx4 load B elem cnt
+        constexpr index_t KThdPerWave = WaveSize; // threads cnt in K dim
+        constexpr index_t KWavePerBlk = BlockSize / WaveSize;
+        constexpr index_t KRepeat     = 1;
+
+        constexpr index_t NBPerLoad   = 1;
+        constexpr index_t NThdPerWave = 1; // threads cnt in M dim
+        constexpr index_t NWavePerBlk = 1;
+        constexpr index_t NRepeat     = 2;
+
+        static_assert(KBPerLoad * KThdPerWave * KWavePerBlk * KRepeat * NBPerLoad * NThdPerWave *
+                          NWavePerBlk * NRepeat ==
+                      KPerTile * NPerTile);
+
+#if FEIFEI_DEBUG
+        if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
+        {
+            printf("[PIPELN] MakeBFlatDramTileDistribution():\n");
+            printf("[PIPELN] KPerTile = %d, NPerTile = %d, BPerTile = %d\n", KPerTile, NPerTile, KPerTile * NPerTile);
+            printf("[PIPELN] BlockSize = %d, WaveSize = %d, VectorLoadSize = %d\n", BlockSize, WaveSize, Problem::VectorLoadSize);
+            printf("[PIPELN] KBPerLoad = %d, KThdPerWave = %d, KWavePerBlk = %d, KRepeat = %d\n", KBPerLoad, KThdPerWave, KWavePerBlk, KRepeat);
+            printf("[PIPELN] NBPerLoad = %d, NThdPerWave = %d, NWavePerBlk = %d, NRepeat = %d\n", NBPerLoad, NThdPerWave, NWavePerBlk, NRepeat);
+        }
+#endif
+        return make_static_tile_distribution(
+            tile_distribution_encoding<sequence<1>,
+                                        tuple<sequence<NRepeat, NWavePerBlk, NThdPerWave, NBPerLoad>,  // second direction
+                                              sequence<KRepeat, KWavePerBlk, KThdPerWave, KBPerLoad>>, // first  direction
+                                        // wave in blk,     // thd in wave
+                                        // <M, K>           // <M, K>
+                                        tuple<sequence<1, 2>, sequence<1, 2>>, // which direction
+                                        tuple<sequence<1, 1>, sequence<2, 2>>, // which index
+                                        // <repeat, vec_load>
+                                        sequence<1, 2>,
+                                        sequence<0, 3>>{});
     }
 
     template <typename Problem>
@@ -466,6 +443,660 @@ struct UniversalFlatmmPipelineAgBgCrPolicy
                                                     WarpGemm>;
         return BlockFlatmmASmemBSmemCRegV1<Problem, BlockFlatmmPolicy>{};
     }
+    
+#if 1
+    template <typename Problem>
+    CK_TILE_HOST_DEVICE static constexpr auto MakeADramTileDistribution()
+    {
+        using ADataType = remove_cvref_t<typename Problem::ADataType>;
+        using ALayout   = remove_cvref_t<typename Problem::ALayout>;
+
+        using TileShape = typename Problem::BlockGemmShape; // ck_tile::TileGemmShape
+        constexpr index_t BlockSize = Problem::kBlockSize;
+        constexpr index_t WaveSize = get_warp_size();
+
+        constexpr index_t MPerTile = TileShape::kM;
+        constexpr index_t KPerTile = TileShape::kK;
+
+        /*if constexpr(std::is_same_v<ALayout, ck_tile::tensor_layout::gemm::ColumnMajor>)
+        {
+            constexpr index_t M1           = Problem::VectorLoadSize / sizeof(ADataType);
+            constexpr index_t M0           = MPerBlock / M1;
+            constexpr index_t total_pixels = MPerBlock * KPerBlock / BlockSize;
+            static_assert(total_pixels % M1 == 0);
+            constexpr index_t K3    = total_pixels / M1;
+            constexpr index_t KPack = GetVectorLoadSize<Problem, ADataType, MPerBlock>();
+            static_assert(KPack % K3 == 0);
+            constexpr index_t K2 = KPack / K3;
+            if constexpr(get_warp_size() % (K2 * M0) == 0)
+            {
+                constexpr index_t K1 = get_warp_size() / (K2 * M0);
+                constexpr index_t K0 = BlockSize / get_warp_size();
+                static_assert(KPerBlock == K0 * K1 * K2 * K3);
+                return make_static_tile_distribution(
+                    tile_distribution_encoding<sequence<1>,
+                                               tuple<sequence<M0, M1>, sequence<K0, K1, K2, K3>>,
+                                               tuple<sequence<2>, sequence<2, 1, 2>>,
+                                               tuple<sequence<0>, sequence<1, 0, 2>>,
+                                               sequence<2, 1>,
+                                               sequence<3, 1>>{});
+            }
+            else
+            {
+                constexpr index_t K1   = (K2 * M0) / get_warp_size();
+                constexpr index_t K2_m = K2 / K1;
+                constexpr index_t K0   = BlockSize / get_warp_size() / K1;
+                static_assert(KPerBlock == K0 * K1 * K2_m * K3);
+                return make_static_tile_distribution(
+                    tile_distribution_encoding<sequence<1>,
+                                               tuple<sequence<M0, M1>, sequence<K0, K1, K2_m, K3>>,
+                                               tuple<sequence<2, 2>, sequence<1, 2>>,
+                                               tuple<sequence<0, 1>, sequence<0, 2>>,
+                                               sequence<2, 1>,
+                                               sequence<3, 1>>{});
+            }
+        }
+        else*/
+        {
+            constexpr index_t KAPerLoad = Problem::VectorLoadSize / sizeof(ADataType);  // dwordx4 load A elem cnt
+            constexpr index_t KThdPerWave = KPerTile / KAPerLoad;                       // threads cnt in K dim
+            constexpr index_t KWavePerBlk = 1;
+            constexpr index_t KRepeat = 1;
+
+            constexpr index_t MAPerLoad = 1;
+            constexpr index_t MThdPerWave = WaveSize / KThdPerWave;                     // threads cnt in M dim
+            constexpr index_t MWavePerBlk = (BlockSize / WaveSize) / KWavePerBlk;
+            constexpr index_t MRepeat = MPerTile / (MAPerLoad * MThdPerWave * MWavePerBlk);
+
+            static_assert(KAPerLoad * KThdPerWave * KWavePerBlk * KRepeat * 
+                            MAPerLoad * MThdPerWave * MWavePerBlk * MRepeat == MPerTile * KPerTile);
+
+            //if constexpr(get_warp_size() % (M2 * K0) == 0)
+            {
+#if FEIFEI_DEBUG
+                if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
+                {
+                    printf("[PIPELN] MakeADramTileDistribution():\n");
+                    printf("[PIPELN] KPerTile = %d, MPerTile = %d, APerTile = %d\n", KPerTile, MPerTile, MPerTile*MPerTile);
+                    printf("[PIPELN] BlockSize = %d, WaveSize = %d, VectorLoadSize = %d\n", BlockSize, WaveSize, Problem::VectorLoadSize);
+                    printf("[PIPELN] KAPerLoad = %d, KThdPerWave = %d, KWavePerBlk = %d, KRepeat = %d\n", KAPerLoad, KThdPerWave, KWavePerBlk, KRepeat);
+                    printf("[PIPELN] MAPerLoad = %d, MThdPerWave = %d, MWavePerBlk = %d, MRepeat = %d\n", MAPerLoad, MThdPerWave, MWavePerBlk, MRepeat);
+                }
+#endif
+                return make_static_tile_distribution(
+                    tile_distribution_encoding<sequence<1>,
+                                               tuple<sequence<MRepeat, MWavePerBlk, MThdPerWave, MAPerLoad>,  // second direction
+                                                     sequence<KRepeat, KWavePerBlk, KThdPerWave, KAPerLoad>>, // first  direction
+                                                // wave in blk,     // thd in wave
+                                                // <M, K>           // <M, K>
+                                               tuple<sequence<1, 2>, sequence<1, 2>>, // which direction
+                                               tuple<sequence<1, 1>, sequence<2, 2>>, // which index
+                                               // <repeat, vec_load>
+                                               sequence<1, 2>,
+                                               sequence<0, 3>>{});
+            }
+            /*else
+            {
+                constexpr index_t M0 = BlockSize / get_warp_size();
+                constexpr index_t M1 = MPerBlock / (M2 * M0);
+                return make_static_tile_distribution(
+                    tile_distribution_encoding<sequence<1>,
+                                               tuple<sequence<M0, M1, M2>, sequence<K0, K1>>,
+                                               tuple<sequence<1>, sequence<1, 2>>,
+                                               tuple<sequence<0>, sequence<2, 0>>,
+                                               sequence<1, 2>,
+                                               sequence<1, 1>>{});
+            }*/
+        }
+    }
+#else
+    template <typename Problem, typename DataType, index_t MNPerBlock, index_t XPerTile>
+    CK_TILE_HOST_DEVICE static constexpr auto GetGlobalVectorLoadSize()
+    {
+        constexpr index_t BlockSize           = Problem::kBlockSize;
+        constexpr index_t KPerBlock           = Problem::BlockGemmShape::kK;
+        constexpr index_t elements_per_thread = MNPerBlock * KPerBlock / BlockSize;
+
+        // Assume DataType is even!
+        if constexpr(XPerTile % (16 / sizeof(DataType)) == 0 &&
+                     elements_per_thread % (16 / sizeof(DataType)) == 0)
+        {
+            return (16 / sizeof(DataType));
+        }
+        else if constexpr(XPerTile % (8 / sizeof(DataType)) == 0 &&
+                          elements_per_thread % (8 / sizeof(DataType)) == 0)
+        {
+            return (8 / sizeof(DataType));
+        }
+        else if constexpr(sizeof(DataType) >= 4 && XPerTile % (4 / sizeof(DataType)) == 0 &&
+                          elements_per_thread % (4 / sizeof(DataType)) == 0)
+        {
+            return (4 / sizeof(DataType));
+        }
+        else if constexpr(sizeof(DataType) >= 2 && XPerTile % (2 / sizeof(DataType)) == 0 &&
+                          elements_per_thread % (2 / sizeof(DataType)) == 0)
+        {
+            return (2 / sizeof(DataType));
+        }
+        else
+        {
+            return 1;
+        }
+    }
+    template <typename Problem>
+    CK_TILE_HOST_DEVICE static constexpr auto GetVectorSizeA()
+    {
+        using ALayout               = remove_cvref_t<typename Problem::ALayout>;
+        using ADataType             = remove_cvref_t<typename Problem::ADataType>;
+        constexpr index_t MPerBlock = Problem::BlockGemmShape::kM;
+        constexpr index_t KPerBlock = Problem::BlockGemmShape::kK;
+
+        if constexpr(std::is_same_v<ALayout, ck_tile::tensor_layout::gemm::RowMajor>)
+        {
+            return GetGlobalVectorLoadSize<Problem, ADataType, MPerBlock, KPerBlock>();
+        }
+        else
+        {
+            return GetGlobalVectorLoadSize<Problem, ADataType, MPerBlock, MPerBlock>();
+        }
+    }
+    template <typename Problem>
+    CK_TILE_HOST_DEVICE static constexpr auto MakeADramTileDistribution()
+    {
+        using ALayout = remove_cvref_t<typename Problem::ALayout>;
+
+        constexpr index_t BlockSize   = Problem::kBlockSize;
+        constexpr index_t MPerBlock   = Problem::BlockGemmShape::kM;
+        constexpr index_t KPerBlock   = Problem::BlockGemmShape::kK;
+        constexpr index_t VecLoadSize = GetVectorSizeA<Problem>();
+
+        // Tile: MPerBlock X KPerBlock
+        if constexpr(std::is_same_v<ALayout, ck_tile::tensor_layout::gemm::RowMajor>)
+        {
+            using TileEncodingPattern = TileDistributionEncodingPattern2D<BlockSize,
+                                                                          MPerBlock,
+                                                                          KPerBlock,
+                                                                          VecLoadSize,
+                                                                          ATileAccessPattern>;
+            return TileEncodingPattern::Make2DStaticTileDistribution();
+        }
+        // Tile: KPerBlock X MPerBlock
+        else
+        {
+            using TileEncodingPattern = TileDistributionEncodingPattern2D<BlockSize,
+                                                                          KPerBlock,
+                                                                          MPerBlock,
+                                                                          VecLoadSize,
+                                                                          ATileAccessPattern>;
+            return TileEncodingPattern::Make2DStaticTileDistribution();
+        }
+    }
+#endif
+};
+#else
+
+struct UniversalFlatmmPipelineAgBgCrPolicy
+{
+    static constexpr auto I0 = number<0>{};
+    static constexpr auto I1 = number<1>{};
+    static constexpr auto I2 = number<2>{};
+
+    // 3d + padding
+    template <typename Problem>
+    CK_TILE_HOST_DEVICE static constexpr auto MakeALdsBlockDescriptor()
+    {
+        using namespace ck_tile;
+
+        constexpr index_t kMPerBlock = Problem::BlockGemmShape::kM;
+        constexpr index_t kKPerBlock = Problem::BlockGemmShape::kK;
+
+        constexpr auto a_lds_block_desc_0 = make_naive_tensor_descriptor(
+            make_tuple(number<kKPerBlock / 8>{}, number<kMPerBlock>{}, number<8>{}),
+            make_tuple(number<(kMPerBlock + 1) * 8>{}, number<8>{}, number<1>{}),
+            number<8>{},
+            number<1>{});
+
+        constexpr auto a_lds_block_desc = transform_tensor_descriptor(
+            a_lds_block_desc_0,
+            make_tuple(make_pass_through_transform(kMPerBlock),
+                       make_merge_transform(make_tuple(kKPerBlock / 8, 8))),
+            make_tuple(sequence<1>{}, sequence<0, 2>{}),
+            make_tuple(sequence<0>{}, sequence<1>{}));
+
+        return a_lds_block_desc;
+    }
+
+    // 3d + padding
+    template <typename Problem>
+    CK_TILE_HOST_DEVICE static constexpr auto MakeBLdsBlockDescriptor()
+    {
+        constexpr index_t kNPerBlock = Problem::BlockGemmShape::kN;
+        constexpr index_t kKPerBlock = Problem::BlockGemmShape::kK;
+
+        constexpr auto b_lds_block_desc_0 = make_naive_tensor_descriptor(
+            make_tuple(number<kKPerBlock / 8>{}, number<kNPerBlock>{}, number<8>{}),
+            make_tuple(number<(kNPerBlock + 1) * 8>{}, number<8>{}, number<1>{}),
+            number<8>{},
+            number<1>{});
+
+        constexpr auto b_lds_block_desc = transform_tensor_descriptor(
+            b_lds_block_desc_0,
+            make_tuple(make_pass_through_transform(kNPerBlock),
+                       make_merge_transform(make_tuple(kKPerBlock / 8, 8))),
+            make_tuple(sequence<1>{}, sequence<0, 2>{}),
+            make_tuple(sequence<0>{}, sequence<1>{}));
+
+        return b_lds_block_desc;
+    }
+
+    template <typename Problem>
+    CK_TILE_HOST_DEVICE static constexpr index_t GetSmemSizeA()
+    {
+        constexpr index_t smem_size_a = sizeof(typename Problem::ADataType) *
+                                        MakeALdsBlockDescriptor<Problem>().get_element_space_size();
+        return smem_size_a;
+    }
+
+    template <typename Problem>
+    CK_TILE_HOST_DEVICE static constexpr index_t GetSmemSizeB()
+    {
+        constexpr index_t smem_size_b = sizeof(typename Problem::BDataType) *
+                                        MakeBLdsBlockDescriptor<Problem>().get_element_space_size();
+        return smem_size_b;
+    }
+
+    template <typename Problem>
+    CK_TILE_HOST_DEVICE static constexpr index_t GetSmemSize()
+    {
+        constexpr index_t smem_size_a = GetSmemSizeA<Problem>();
+        constexpr index_t smem_size_b = GetSmemSizeB<Problem>();
+        constexpr index_t smem_size   = smem_size_a + smem_size_b;
+
+        return smem_size;
+    }
+
+    template <typename Problem>
+    CK_TILE_HOST_DEVICE static constexpr auto GetSmemPackA()
+    {
+        return Problem::VectorLoadSize;
+    }
+
+    template <typename Problem>
+    CK_TILE_HOST_DEVICE static constexpr auto GetSmemPackB()
+    {
+        return Problem::VectorLoadSize;
+    }
+
+    template <typename Problem>
+    CK_TILE_HOST_DEVICE static constexpr auto MakeADramTileDistribution()
+    {
+        using ADataType = remove_cvref_t<typename Problem::ADataType>;
+        using ALayout   = remove_cvref_t<typename Problem::ALayout>;
+
+        constexpr index_t BlockSize = Problem::kBlockSize;
+
+        constexpr index_t MPerBlock = Problem::BlockGemmShape::kM;
+        constexpr index_t KPerBlock = Problem::BlockGemmShape::kK;
+
+        if constexpr(std::is_same_v<ALayout, ck_tile::tensor_layout::gemm::ColumnMajor>)
+        {
+            constexpr index_t M1           = Problem::VectorLoadSize / sizeof(ADataType);
+            constexpr index_t M0           = MPerBlock / M1;
+            constexpr index_t total_pixels = MPerBlock * KPerBlock / BlockSize;
+            static_assert(total_pixels % M1 == 0);
+            constexpr index_t K3    = total_pixels / M1;
+            constexpr index_t KPack = GetSmemPackA<Problem>();
+            static_assert(KPack % K3 == 0);
+            constexpr index_t K2 = KPack / K3;
+            if constexpr(get_warp_size() % (K2 * M0))
+            {
+                constexpr index_t K1 = get_warp_size() / (K2 * M0);
+                constexpr index_t K0 = BlockSize / get_warp_size();
+                static_assert(KPerBlock == K0 * K1 * K2 * K3);
+                return make_static_tile_distribution(
+                    tile_distribution_encoding<sequence<1>,
+                                               tuple<sequence<M0, M1>, sequence<K0, K1, K2, K3>>,
+                                               tuple<sequence<2>, sequence<2, 1, 2>>,
+                                               tuple<sequence<0>, sequence<1, 0, 2>>,
+                                               sequence<2, 1>,
+                                               sequence<3, 1>>{});
+            }
+            else
+            {
+                constexpr index_t K1   = (K2 * M0) / get_warp_size();
+                constexpr index_t K2_m = K2 / K1;
+                constexpr index_t K0   = BlockSize / get_warp_size() / K1;
+                static_assert(KPerBlock == K0 * K1 * K2_m * K3);
+                return make_static_tile_distribution(
+                    tile_distribution_encoding<sequence<1>,
+                                               tuple<sequence<M0, M1>, sequence<K0, K1, K2_m, K3>>,
+                                               tuple<sequence<2, 2>, sequence<1, 2>>,
+                                               tuple<sequence<0, 1>, sequence<0, 2>>,
+                                               sequence<2, 1>,
+                                               sequence<3, 1>>{});
+            }
+        }
+        else
+        {
+            constexpr index_t K1 = 16 / sizeof(ADataType);
+            constexpr index_t K0 = KPerBlock / K1;
+            constexpr index_t M2 = get_warp_size() / K0;
+            // coalesce reading for each blocks
+            if constexpr(get_warp_size() % (M2 * K0) == 0)
+            {
+                constexpr index_t M1 = BlockSize / get_warp_size();
+                static_assert(M2 != 0, "M2 is zero, which will lead to a division by zero error.");
+                static_assert(M1 != 0, "M1 is zero, which will lead to a division by zero error.");
+                constexpr index_t M0 = MPerBlock / (M2 * M1);
+                static_assert(M0 * M1 * M2 == MPerBlock,
+                              "Incorrect M0, M2, M1 configuration! "
+                              "M0, M1, M2 must cover whole MPerBlock!");
+#if FEIFEI_DEBUG
+                if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
+                {
+                    printf("[PIPELN] MakeADramTileDistribution():\n");
+                    printf("[PIPELN] KPerBlock = %d, MPerBlock = %d, APerTile = %d\n", KPerBlock, MPerBlock, KPerBlock * MPerBlock);
+                    printf("[PIPELN] BlockSize = %d, WaveSize = %d, VectorLoadSize = %d\n", BlockSize, get_warp_size(), Problem::VectorLoadSize);
+                    printf("[PIPELN] K0 = %d, K1 = %d\n", K0, K1);
+                    printf("[PIPELN] M0 = %d, M1 = %d, M2 = %d\n", M0, M1, M2);
+                }
+#endif
+                return make_static_tile_distribution(
+                    tile_distribution_encoding<sequence<1>,
+                                               tuple<sequence<M0, M1, M2>, sequence<K0, K1>>,
+                                               tuple<sequence<1>, sequence<1, 2>>,
+                                               tuple<sequence<1>, sequence<2, 0>>,
+                                               sequence<1, 2>,
+                                               sequence<0, 1>>{});
+            }
+            else
+            {
+                constexpr index_t M0 = BlockSize / get_warp_size();
+                constexpr index_t M1 = MPerBlock / (M2 * M0);
+                static_assert(M0 * M1 * M2 == MPerBlock,
+                              "Incorrect M0, M1, M2 configuration! "
+                              "M0, M1, M2 must cover whole MPerBlock!");
+                return make_static_tile_distribution(
+                    tile_distribution_encoding<sequence<1>,
+                                               tuple<sequence<M0, M1, M2>, sequence<K0, K1>>,
+                                               tuple<sequence<1>, sequence<1, 2>>,
+                                               tuple<sequence<0>, sequence<2, 0>>,
+                                               sequence<1, 2>,
+                                               sequence<1, 1>>{});
+            }
+        }
+    }
+
+    template <typename Problem>
+    CK_TILE_HOST_DEVICE static constexpr auto MakeBDramTileDistribution()
+    {
+        using BDataType = remove_cvref_t<typename Problem::BDataType>;
+        using BLayout   = remove_cvref_t<typename Problem::BLayout>;
+
+        constexpr index_t BlockSize = Problem::kBlockSize;
+
+        constexpr index_t NPerBlock = Problem::BlockGemmShape::kN;
+        constexpr index_t KPerBlock = Problem::BlockGemmShape::kK;
+
+        if constexpr(std::is_same_v<BLayout, ck_tile::tensor_layout::gemm::RowMajor>)
+        {
+            constexpr index_t N1           = Problem::VectorLoadSize / sizeof(BDataType);
+            constexpr index_t N0           = NPerBlock / N1;
+            constexpr index_t total_pixels = NPerBlock * KPerBlock / BlockSize;
+            static_assert(total_pixels % N1 == 0);
+            constexpr index_t K3    = total_pixels / N1;
+            constexpr index_t KPack = GetSmemPackB<Problem>();
+            static_assert(KPack % K3 == 0);
+            constexpr index_t K2 = KPack / K3;
+            if constexpr(get_warp_size() % (K2 * N0) == 0)
+            {
+                constexpr index_t K1 = get_warp_size() / (K2 * N0);
+                constexpr index_t K0 = BlockSize / get_warp_size();
+                static_assert(KPerBlock == K0 * K1 * K2 * K3);
+                return make_static_tile_distribution(
+                    tile_distribution_encoding<sequence<1>,
+                                               tuple<sequence<N0, N1>, sequence<K0, K1, K2, K3>>,
+                                               tuple<sequence<2>, sequence<2, 1, 2>>,
+                                               tuple<sequence<0>, sequence<1, 0, 2>>,
+                                               sequence<2, 1>,
+                                               sequence<3, 1>>{});
+            }
+            else
+            {
+                constexpr index_t K1   = (K2 * N0) / get_warp_size();
+                constexpr index_t K2_m = K2 / K1;
+                constexpr index_t K0   = BlockSize / get_warp_size() / K1;
+                static_assert(KPerBlock == K0 * K1 * K2_m * K3);
+                return make_static_tile_distribution(
+                    tile_distribution_encoding<sequence<1>,
+                                               tuple<sequence<N0, N1>, sequence<K0, K1, K2_m, K3>>,
+                                               tuple<sequence<2, 2>, sequence<1, 2>>,
+                                               tuple<sequence<0, 1>, sequence<0, 2>>,
+                                               sequence<2, 1>,
+                                               sequence<3, 1>>{});
+            }
+        }
+        else
+        {
+
+            constexpr index_t K1 = Problem::VectorLoadSize / sizeof(BDataType);
+            constexpr index_t K0 = KPerBlock / K1;
+            constexpr index_t N2 = get_warp_size() / K0;
+            // coalesce reading for each blocks
+            if constexpr(get_warp_size() % (N2 * K0) == 0)
+            {
+                constexpr index_t N1 = BlockSize / get_warp_size();
+                static_assert(N2 != 0, "N2 is zero, which will lead to a division by zero error.");
+                static_assert(N1 != 0, "N1 is zero, which will lead to a division by zero error.");
+                constexpr index_t N0 = NPerBlock / (N2 * N1);
+                static_assert(N0 * N1 * N2 == NPerBlock,
+                              "Incorrect N0, N1, N2 configuration! "
+                              "N0, N1, N2 must cover whole NPerBlock!");
+#if FEIFEI_DEBUG
+            if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
+            {
+                printf("[PIPELN] MakeBDramTileDistribution():\n");
+                printf("[PIPELN] NPerBlock = %d, KPerBlock = %d, BperBlock = %d\n", NPerBlock, KPerBlock, NPerBlock * KPerBlock);
+                printf("[PIPELN] BlockSize = %d, warp_size = %d, VectorLoadSize = %d\n", BlockSize, get_warp_size(), Problem::VectorLoadSize);
+                printf("[PIPELN] K0 = %d, K1 = %d\n", K0, K1);
+                printf("[PIPELN] N0 = %d, N1 = %d, N2 = %d\n", N0, N1, N2);
+            }
+#endif
+                return make_static_tile_distribution(
+                    tile_distribution_encoding<sequence<1>,
+                                               tuple<sequence<N0, N1, N2>, sequence<K0, K1>>,
+                                               tuple<sequence<1>, sequence<1, 2>>,
+                                               tuple<sequence<1>, sequence<2, 0>>,
+                                               sequence<1, 2>,
+                                               sequence<0, 1>>{});
+            }
+            // coalesce reading for each warps
+            else
+            {
+                constexpr index_t N0 = BlockSize / get_warp_size();
+                constexpr index_t N1 = NPerBlock / (N2 * N0);
+                static_assert(N0 * N1 * N2 == NPerBlock,
+                              "Incorrect N0, N1, N2 configuration! "
+                              "N0, N1, N2 must cover whole NPerBlock!");
+                return make_static_tile_distribution(
+                    tile_distribution_encoding<sequence<1>,
+                                               tuple<sequence<N0, N1, N2>, sequence<K0, K1>>,
+                                               tuple<sequence<1>, sequence<1, 2>>,
+                                               tuple<sequence<0>, sequence<2, 0>>,
+                                               sequence<1, 2>,
+                                               sequence<1, 1>>{});
+            }
+        }
+    }
+
+    template <typename Problem>
+    CK_TILE_HOST_DEVICE static constexpr auto MakeBFlatDramTileDistribution()
+    {
+        using BDataType = remove_cvref_t<typename Problem::BDataType>;
+        using BLayout   = remove_cvref_t<typename Problem::BLayout>;
+
+        using TileShape             = typename Problem::BlockGemmShape; // ck_tile::TileGemmShape
+        constexpr index_t BlockSize = Problem::kBlockSize;
+        constexpr index_t WaveSize  = get_warp_size();
+
+        constexpr index_t KPerTile = TileShape::kK;
+        constexpr index_t NPerTile = TileShape::kN;
+
+        constexpr index_t KBPerLoad = Problem::VectorLoadSize / sizeof(BDataType);      // dwordx4 load B elem cnt
+        constexpr index_t KThdPerWave = WaveSize; // threads cnt in K dim
+        constexpr index_t KWavePerBlk = BlockSize / WaveSize;
+        constexpr index_t KRepeat     = 1;
+
+        constexpr index_t NBPerLoad   = 1;
+        constexpr index_t NThdPerWave = 1; // threads cnt in M dim
+        constexpr index_t NWavePerBlk = 1;
+        constexpr index_t NRepeat     = 4;
+
+        static_assert(KBPerLoad * KThdPerWave * KWavePerBlk * KRepeat * NBPerLoad * NThdPerWave *
+                          NWavePerBlk * NRepeat ==
+                      KPerTile * NPerTile);
+
+#if FEIFEI_DEBUG
+        if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
+        {
+            printf("[PIPELN] MakeBFlatDramTileDistribution():\n");
+            printf("[PIPELN] KPerTile = %d, NPerTile = %d, BPerTile = %d\n", KPerTile, NPerTile, KPerTile * NPerTile);
+            printf("[PIPELN] BlockSize = %d, WaveSize = %d, VectorLoadSize = %d\n", BlockSize, WaveSize, Problem::VectorLoadSize);
+            printf("[PIPELN] KBPerLoad = %d, KThdPerWave = %d, KWavePerBlk = %d, KRepeat = %d\n", KBPerLoad, KThdPerWave, KWavePerBlk, KRepeat);
+            printf("[PIPELN] NBPerLoad = %d, NThdPerWave = %d, NWavePerBlk = %d, NRepeat = %d\n", NBPerLoad, NThdPerWave, NWavePerBlk, NRepeat);
+        }
+#endif
+        return make_static_tile_distribution(
+            tile_distribution_encoding<sequence<1>,
+                                        tuple<sequence<NRepeat, NWavePerBlk, NThdPerWave, NBPerLoad>,  // second direction
+                                              sequence<KRepeat, KWavePerBlk, KThdPerWave, KBPerLoad>>, // first  direction
+                                        // wave in blk,     // thd in wave
+                                        // <M, K>           // <M, K>
+                                        tuple<sequence<1, 2>, sequence<1, 2>>, // which direction
+                                        tuple<sequence<1, 1>, sequence<2, 2>>, // which index
+                                        // <repeat, vec_load>
+                                        sequence<1, 2>,
+                                        sequence<0, 3>>{});
+    }
+
+    template <typename Problem>
+    CK_TILE_HOST_DEVICE static constexpr auto MakeShuffledBRegBlockDistribution()
+    {
+        using BLayout   = remove_cvref_t<typename Problem::BLayout>;
+        using BDataType = remove_cvref_t<typename Problem::BDataType>;
+        static_assert(std::is_same_v<BLayout, ck_tile::tensor_layout::gemm::RowMajor>);
+        constexpr index_t kBlockSize = Problem::kBlockSize;
+        constexpr index_t kNPerBlock = Problem::BlockGemmShape::kN;
+        constexpr index_t kKPerBlock = Problem::BlockGemmShape::kK;
+
+        constexpr index_t N1           = Problem::VectorLoadSize / sizeof(BDataType);
+        constexpr index_t N0           = kNPerBlock / N1;
+        constexpr index_t total_pixels = kNPerBlock * kKPerBlock / kBlockSize;
+        static_assert(total_pixels % N1 == 0);
+        constexpr index_t K3     = total_pixels / N1;
+        constexpr index_t kKPack = GetSmemPackB<Problem>();
+        static_assert(kKPack % K3 == 0);
+        constexpr index_t K2 = kKPack / K3; // TODO: this dimention could be outside single wave
+        constexpr index_t warp_size = get_warp_size();
+        if constexpr(warp_size % (K2 * N0) == 0)
+        {
+            constexpr index_t K1 = warp_size / (K2 * N0);
+            constexpr index_t K0 = kBlockSize / warp_size;
+            return make_static_tile_distribution(
+                tile_distribution_encoding<sequence<1>,
+                                           tuple<sequence<N0, N1>, sequence<K0, K1, K2, K3>>,
+                                           tuple<sequence<2>, sequence<2, 1, 2>>,
+                                           tuple<sequence<0>, sequence<1, 0, 2>>,
+                                           sequence<1, 2>,
+                                           sequence<1, 3>>{});
+        }
+        else
+        {
+            constexpr index_t K1   = (K2 * N0) / get_warp_size();
+            constexpr index_t K2_m = K2 / K1;
+            constexpr index_t K0   = kBlockSize / get_warp_size() / K1;
+            static_assert(kKPerBlock == K0 * K1 * K2_m * K3);
+            return make_static_tile_distribution(
+                tile_distribution_encoding<sequence<1>,
+                                           tuple<sequence<N0, N1>, sequence<K0, K1, K2_m, K3>>,
+                                           tuple<sequence<2, 2>, sequence<1, 2>>,
+                                           tuple<sequence<0, 1>, sequence<0, 2>>,
+                                           sequence<1, 2>,
+                                           sequence<1, 3>>{});
+        }
+    }
+
+    template <typename Problem>
+    CK_TILE_HOST_DEVICE static constexpr auto MakeShuffledARegBlockDistribution()
+    {
+        using ALayout   = remove_cvref_t<typename Problem::ALayout>;
+        using ADataType = remove_cvref_t<typename Problem::ADataType>;
+        static_assert(std::is_same_v<ALayout, ck_tile::tensor_layout::gemm::ColumnMajor>);
+        constexpr index_t kBlockSize = Problem::kBlockSize;
+        constexpr index_t kMPerBlock = Problem::BlockGemmShape::kM;
+        constexpr index_t kKPerBlock = Problem::BlockGemmShape::kK;
+
+        constexpr index_t M1           = Problem::VectorLoadSize / sizeof(ADataType);
+        constexpr index_t M0           = kMPerBlock / M1;
+        constexpr index_t total_pixels = kMPerBlock * kKPerBlock / kBlockSize;
+        static_assert(total_pixels % M1 == 0);
+        constexpr index_t K3     = total_pixels / M1;
+        constexpr index_t kKPack = GetSmemPackA<Problem>();
+        static_assert(kKPack % K3 == 0);
+        constexpr index_t K2 = kKPack / K3; // TODO: this dimention could be outside single wave
+        constexpr index_t warp_size = get_warp_size();
+        if constexpr(warp_size % (K2 * M0) == 0)
+        {
+            constexpr index_t K1 = warp_size / (K2 * M0);
+            constexpr index_t K0 = kBlockSize / warp_size;
+
+            return make_static_tile_distribution(
+                tile_distribution_encoding<sequence<1>,
+                                           tuple<sequence<M0, M1>, sequence<K0, K1, K2, K3>>,
+                                           tuple<sequence<2>, sequence<2, 1, 2>>,
+                                           tuple<sequence<0>, sequence<1, 0, 2>>,
+                                           sequence<1, 2>,
+                                           sequence<1, 3>>{});
+        }
+        else
+        {
+            constexpr index_t K1   = (K2 * M0) / get_warp_size();
+            constexpr index_t K2_m = K2 / K1;
+            constexpr index_t K0   = kBlockSize / get_warp_size() / K1;
+            static_assert(kKPerBlock == K0 * K1 * K2_m * K3);
+            return make_static_tile_distribution(
+                tile_distribution_encoding<sequence<1>,
+                                           tuple<sequence<M0, M1>, sequence<K0, K1, K2_m, K3>>,
+                                           tuple<sequence<2, 2>, sequence<1, 2>>,
+                                           tuple<sequence<0, 1>, sequence<0, 2>>,
+                                           sequence<1, 2>,
+                                           sequence<1, 3>>{});
+        }
+    }
+
+    template <typename Problem>
+    CK_TILE_HOST_DEVICE static constexpr auto GetBlockFlatmm()
+    {
+        using AccDataType     = float;
+        using BlockWarps      = typename Problem::BlockGemmShape::BlockWarps;
+        using WarpTile        = typename Problem::BlockGemmShape::WarpTile;
+        using WarpGemm        = WarpGemmMfmaDispatcher<typename Problem::ADataType,
+                                                typename Problem::BDataType,
+                                                AccDataType,
+                                                WarpTile::at(I0),
+                                                WarpTile::at(I1),
+                                                WarpTile::at(I2),
+                                                Problem::TransposeC>;
+
+        using BlockFlatmmPolicy =
+            BlockFlatmmASmemBSmemCRegV1CustomPolicy<typename Problem::ADataType,
+                                                    typename Problem::BDataType,
+                                                    typename Problem::CDataType,
+                                                    BlockWarps,
+                                                    WarpGemm>;
+        return BlockFlatmmASmemBSmemCRegV1<Problem, BlockFlatmmPolicy>{};
+    }
 };
 
+#endif
 } // namespace ck_tile

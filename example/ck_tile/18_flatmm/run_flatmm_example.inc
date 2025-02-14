@@ -415,8 +415,8 @@ int run_flatmm_example_with_layouts(int argc,
     // b_shuffle
     {
         std::ofstream file("ff_b_shuffle_host.txt");
-        int X = static_cast<int>(K);
-        int Y = static_cast<int>(N);
+        int X = 32 * 32;
+        int Y = static_cast<int>(N) * static_cast<int>(M) / X;
         file << " [b_shuffle_host]: Row = " << Y << ", Col = " << X << std::endl;
 
         for(int y = 0; y < Y; y++)
