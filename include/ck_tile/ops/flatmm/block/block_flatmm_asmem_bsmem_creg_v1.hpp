@@ -19,7 +19,7 @@ struct BlockFlatmmASmemBSmemCRegV1
     using ADataType      = remove_cvref_t<typename Problem::ADataType>;
     using BDataType      = remove_cvref_t<typename Problem::BDataType>;
     using CDataType      = remove_cvref_t<typename Problem::CDataType>;
-    using BlockGemmShape = remove_cvref_t<typename Problem::BlockGemmShape>;
+    using BlockGemmShape = remove_cvref_t<typename Problem::BlockGemmShape>; // TileFlatmmShape
 
     static constexpr index_t kBlockSize = Problem::kBlockSize;
 
@@ -55,20 +55,28 @@ struct BlockFlatmmASmemBSmemCRegV1
         return c_block_tensor;
     }
 
-#if 0
     // C += A * B
-    // template <typename CBlockTensor, typename ABlockWindow, typename BBlockWindow>
-    template <typename ABlockWindow, typename BBlockWindow>
-    CK_TILE_DEVICE void operator()(const ABlockWindow& a_block_window, const BBlockWindow& b_block_window
-#if FEIFEI_DEBUG
+    template <typename CBlockTensor,
+              typename ABlockWindow,
+              typename BFlatBlockWindow
+#ifdef FEIFEI_DEBUG
+              ,
+              typename BOriginBlockWindow
+#endif
+              >
+    CK_TILE_DEVICE void operator()(CBlockTensor& c_block_tensor,
+                                   const ABlockWindow& a_block_window,
+                                   const BFlatBlockWindow& b_flat_block_window
+#ifdef FEIFEI_DEBUG
                                    ,
+                                   const BOriginBlockWindow& b_origin_block_window,
                                    int* dbg_int,
                                    float* dbg_fp32,
                                    void* dbg_f168
 #endif
     ) const
     {
-#if FEIFEI_DEBUG
+#ifdef FEIFEI_DEBUG
         if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
         {
             printf("[BLOCK ] BlockFlatmmASmemBSmemCRegV1():\n");
@@ -92,15 +100,13 @@ struct BlockFlatmmASmemBSmemCRegV1
             dbg_f16[gid * DEBUG_CNT + i] = ck_tile::type_convert<ck_tile::half_t>(-1.0f);
         }
 #endif
-        /*
         static_assert(std::is_same_v<ADataType, typename ABlockWindow::DataType> &&
-                          std::is_same_v<BDataType, typename BBlockWindow::DataType> &&
+                          std::is_same_v<BDataType, typename BFlatBlockWindow::DataType> &&
                           std::is_same_v<CDataType, typename CBlockTensor::DataType>,
                       "wrong!");
-        */
-
         constexpr index_t MPerBlock = ABlockWindow{}.get_window_lengths()[number<0>{}];
-        constexpr index_t NPerBlock = BBlockWindow{}.get_window_lengths()[number<0>{}];
+        //constexpr index_t NPerBlock = BFlatBlockWindow{}.get_window_lengths()[number<0>{}];
+        constexpr index_t NPerBlock = BOriginBlockWindow{}.get_window_lengths()[number<0>{}]; // feifei TODO: get from flat window
         constexpr index_t KPerBlock = ABlockWindow{}.get_window_lengths()[number<1>{}];
 
         static_assert(MPerBlock == BlockGemmShape::kM && NPerBlock == BlockGemmShape::kN &&
@@ -121,6 +127,9 @@ struct BlockFlatmmASmemBSmemCRegV1
         constexpr index_t NPerBlockPerIter = NPerBlock / NIterPerWarp;
         constexpr index_t KPerBlockPerIter = KPerBlock / KIterPerWarp;
 
+        constexpr index_t NFlatPerBlockPerIter = BlockGemmShape::kFlatNPerBlock;
+        constexpr index_t KFlatPerBlockPerIter = BlockGemmShape::kFlatKPerBlock;
+
         const index_t iMWarp = get_warp_id() / NWarp;
         const index_t iNWarp = get_warp_id() % NWarp;
 
@@ -130,13 +139,10 @@ struct BlockFlatmmASmemBSmemCRegV1
             make_tuple(number<WG::kM>{}, number<WG::kK>{}),
             a_block_window.get_window_origin() + multi_index<2>{iMWarp * WG::kM, 0},
             make_static_tile_distribution(typename WG::AWarpDstrEncoding{}));
-            
-
         statically_indexed_array<
             statically_indexed_array<decltype(a_warp_window_tmp), KIterPerWarp>,
             MIterPerWarp>
             a_warp_windows;
-
         static_for<0, MIterPerWarp, 1>{}([&](auto mIter) {
             static_for<0, KIterPerWarp, 1>{}([&](auto kIter) {
                 a_warp_windows(mIter)(kIter) = a_warp_window_tmp;
@@ -146,12 +152,45 @@ struct BlockFlatmmASmemBSmemCRegV1
             });
         });
 
-        // Warp loop in block:
-        constexpr index_t kIter  = 0;
-        constexpr index_t mIter  = 0;
-        const auto a_warp_tensor = load_tile(a_warp_window_tmp);
+        // construct Bflat-warp-window
+        auto b_flat_warp_windows_tmp = b_flat_block_window;
+        statically_indexed_array<
+            statically_indexed_array<decltype(b_flat_warp_windows_tmp), KIterPerWarp>,
+            NIterPerWarp>
+            b_flat_warp_windows;
+        static_for<0, NIterPerWarp, 1>{}([&](auto nIter) {
+            static_for<0, KIterPerWarp, 1>{}([&](auto kIter) {
+                b_flat_warp_windows(nIter)(kIter) = b_flat_warp_windows_tmp;
 
-#if FEIFEI_DEBUG
+                move_tile_window(b_flat_warp_windows(nIter)(kIter),
+                                 {nIter * NFlatPerBlockPerIter, kIter * KFlatPerBlockPerIter});
+            });
+        });
+
+#ifdef FEIFEI_DEBUG
+        // construct B-warp-window
+        auto b_origin_warp_window_tmp = make_tile_window(
+            b_origin_block_window.get_bottom_tensor_view(),
+            make_tuple(number<WG::kN>{}, number<WG::kK>{}),
+            b_origin_block_window.get_window_origin() + multi_index<2>{iNWarp * WG::kN, 0},
+            make_static_tile_distribution(typename WG::BWarpDstrEncoding{}));
+        statically_indexed_array<
+            statically_indexed_array<decltype(b_origin_warp_window_tmp), KIterPerWarp>,
+            NIterPerWarp>
+            b_origin_warp_windows;
+        static_for<0, NIterPerWarp, 1>{}([&](auto nIter) {
+            static_for<0, KIterPerWarp, 1>{}([&](auto kIter) {
+                b_origin_warp_windows(nIter)(kIter) = b_origin_warp_window_tmp;
+
+                move_tile_window(b_origin_warp_windows(nIter)(kIter),
+                                 {nIter * NPerBlockPerIter, kIter * KPerBlockPerIter});
+            });
+        });
+
+        // Warp loop in block:
+        constexpr auto mIterDbg  = number<0>{};
+        constexpr auto nIterDbg  = number<0>{};
+        constexpr auto kIterDbg  = number<0>{};
         if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
         {
             printf("[BLOCK ] WG::kM = %d, WG::kM = %d, WG::kK = %d, WG::kKPerThread = %d\n", WG::kM, WG::kN, WG::kK, WG::kKPerThread);
@@ -159,262 +198,48 @@ struct BlockFlatmmASmemBSmemCRegV1
         }
 
         // debug A lds read
-        int warp_tile_size_per_thread = a_warp_tensor.get_thread_buffer_size();
+        const auto a_warp_tensor_dbg = load_tile(a_warp_windows(mIterDbg)(kIterDbg));
+        int a_warp_tile_size_per_thread = a_warp_tensor_dbg.get_thread_buffer_size();
         if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
         {
-            printf("[BLOCK ] warp_tile_size_per_thread = %d\n", warp_tile_size_per_thread);
+            printf("[BLOCK ] a_warp_tile_size_per_thread = %d\n", a_warp_tile_size_per_thread);
         }
-        for(auto i = 0; i < warp_tile_size_per_thread; i++)
+        for(auto i = 0; i < a_warp_tile_size_per_thread; i++)
         {
-            dbg_f16[gid * DEBUG_CNT + i] = a_warp_tensor.get_thread_buffer()[i];
+            //dbg_f16[gid * DEBUG_CNT + i] = a_warp_tensor_dbg.get_thread_buffer()[i];
         }
 
-        return ;
-#endif
-
-
-#if 1
-        // feifei TODO: Implement gemm here
-#else
-        constexpr auto config = BlockPolicy::template GetWarpGemmMWarpNWarp<Problem>();
-
-        using WG = remove_cvref_t<decltype(config.template at<0>())>;
-
-        constexpr index_t MWarp = config.template at<1>();
-        constexpr index_t NWarp = config.template at<2>();
-
-        constexpr index_t MIterPerWarp = MPerBlock / (MWarp * WG::kM);
-        constexpr index_t NIterPerWarp = NPerBlock / (NWarp * WG::kN);
-        constexpr index_t KIterPerWarp = KPerBlock / WG::kK;
-
-        constexpr index_t MPerBlockPerIter = MPerBlock / MIterPerWarp;
-        constexpr index_t NPerBlockPerIter = NPerBlock / NIterPerWarp;
-        constexpr index_t KPerBlockPerIter = KPerBlock / KIterPerWarp;
-
-        const index_t iMWarp = get_warp_id() / NWarp;
-        const index_t iNWarp = get_warp_id() % NWarp;
-
-        // construct A-warp-window
-        auto a_warp_window_tmp = make_tile_window(
-            a_block_window.get_bottom_tensor_view(),
-            make_tuple(number<WG::kM>{}, number<WG::kK>{}),
-            a_block_window.get_window_origin() + multi_index<2>{iMWarp * WG::kM, 0},
-            make_static_tile_distribution(typename WG::AWarpDstrEncoding{}));
-
-#if 0 // FIXME: using array will cause register spill
-        array<array<decltype(a_warp_window_tmp), KIterPerWarp>, MIterPerWarp> a_warp_windows{
-            {a_warp_window_tmp}};
-
-        for(index_t mIter = 0; mIter < MIterPerWarp; mIter++)
+        // debug B lds read
+        const auto b_origin_warp_tensor_dbg = load_tile(b_origin_warp_windows(nIterDbg)(kIterDbg));
+        int b_origin_warp_tile_size_per_thread = b_origin_warp_tensor_dbg.get_thread_buffer_size();
+        if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
         {
-            for(index_t kIter = 0; kIter < KIterPerWarp; kIter++)
-            {
-                move_tile_window(a_warp_windows(mIter)(kIter),
-                                 {mIter * MPerBlockPerIter, kIter * KPerBlockPerIter});
-            }
+            printf("[BLOCK ] b_origin_warp_tile_size_per_thread = %d\n", b_origin_warp_tile_size_per_thread);
         }
-#else
-        statically_indexed_array<
-            statically_indexed_array<decltype(a_warp_window_tmp), KIterPerWarp>,
-            MIterPerWarp>
-            a_warp_windows;
-
-        static_for<0, MIterPerWarp, 1>{}([&](auto mIter) {
-            static_for<0, KIterPerWarp, 1>{}([&](auto kIter) {
-                a_warp_windows(mIter)(kIter) = a_warp_window_tmp;
-
-                move_tile_window(a_warp_windows(mIter)(kIter),
-                                 {mIter * MPerBlockPerIter, kIter * KPerBlockPerIter});
-            });
-        });
-#endif
-
-        // construct B-warp-window
-        auto b_warp_window_tmp = make_tile_window(
-            b_block_window.get_bottom_tensor_view(),
-            make_tuple(number<WG::kN>{}, number<WG::kK>{}),
-            b_block_window.get_window_origin() + multi_index<2>{iNWarp * WG::kN, 0},
-            make_static_tile_distribution(typename WG::BWarpDstrEncoding{}));
-
-#if 0 // FIXME: using array will cause register spill
-        array<array<decltype(b_warp_window_tmp), KIterPerWarp>, NIterPerWarp> b_warp_windows{
-            {b_warp_window_tmp}};
-
-        for(index_t nIter = 0; nIter < NIterPerWarp; nIter++)
+        for(auto i = 0; i < b_origin_warp_tile_size_per_thread; i++)
         {
-            for(index_t kIter = 0; kIter < KIterPerWarp; kIter++)
-            {
-                move_tile_window(b_warp_windows(nIter)(kIter),
-                                 {nIter * NPerBlockPerIter, kIter * KPerBlockPerIter});
-            }
+            dbg_f16[gid * DEBUG_CNT + i + 0] = b_origin_warp_tensor_dbg.get_thread_buffer()[i];
         }
-#else
-        statically_indexed_array<
-            statically_indexed_array<decltype(b_warp_window_tmp), KIterPerWarp>,
-            NIterPerWarp>
-            b_warp_windows;
-
-        static_for<0, NIterPerWarp, 1>{}([&](auto nIter) {
-            static_for<0, KIterPerWarp, 1>{}([&](auto kIter) {
-                b_warp_windows(nIter)(kIter) = b_warp_window_tmp;
-
-                move_tile_window(b_warp_windows(nIter)(kIter),
-                                 {nIter * NPerBlockPerIter, kIter * KPerBlockPerIter});
-            });
-        });
+        
+        // debug B flat read
+        auto b_flat_warp_tensor_dbg  = load_tile(b_flat_warp_windows(nIterDbg)(kIterDbg));
+        int b_flat_warp_size_per_thread = b_flat_warp_tensor_dbg.get_thread_buffer_size();
+        if(threadIdx.x == 64 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
+        {
+            printf("[BLOCK ] b_flat_warp_size_per_thread = %d\n", b_flat_warp_size_per_thread);
+        }
+        for(auto i = 0; i < b_flat_warp_size_per_thread; i++)
+        {
+            dbg_f16[gid * DEBUG_CNT + i + b_origin_warp_tile_size_per_thread + 4] = b_flat_warp_tensor_dbg.get_thread_buffer()[i];
+        }
 #endif
+        //auto b_warp_windows = b_origin_warp_windows;
+        auto b_warp_windows = b_flat_warp_windows;
 
         using CWarpDstr   = typename WG::CWarpDstr;
         using CWarpTensor = typename WG::CWarpTensor;
 
-        constexpr auto c_warp_y_lengths =
-            to_sequence(CWarpDstr{}.get_ys_to_d_descriptor().get_lengths());
-        constexpr auto c_warp_y_index_zeros = uniform_sequence_gen_t<CWarpDstr::NDimY, 0>{};
-
-        // hot loop:
-        static_for<0, KIterPerWarp, 1>{}([&](auto kIter) {
-            static_for<0, MIterPerWarp, 1>{}([&](auto mIter) {
-                // read A warp tensor from A block window
-                const auto a_warp_tensor = load_tile(a_warp_windows(mIter)(kIter));
-
-                static_for<0, NIterPerWarp, 1>{}([&](auto nIter) {
-                    // read B warp tensor from B Block window
-                    const auto b_warp_tensor = load_tile(b_warp_windows(nIter)(kIter));
-
-                    // read C warp tensor from C block tensor
-                    CWarpTensor c_warp_tensor;
-
-                    c_warp_tensor.get_thread_buffer() = c_block_tensor.get_y_sliced_thread_data(
-                        merge_sequences(sequence<mIter, nIter>{}, c_warp_y_index_zeros),
-                        merge_sequences(sequence<1, 1>{}, c_warp_y_lengths));
-
-                    // warp GEMM
-                    WG{}(c_warp_tensor, a_warp_tensor, b_warp_tensor);
-
-                    // write C warp tensor into C block tensor
-                    c_block_tensor.set_y_sliced_thread_data(
-                        merge_sequences(sequence<mIter, nIter>{}, c_warp_y_index_zeros),
-                        merge_sequences(sequence<1, 1>{}, c_warp_y_lengths),
-                        c_warp_tensor.get_thread_buffer());
-                });
-            });
-        });
-#endif
-    }
-
-#else
-    // C += A * B
-    template <typename CBlockTensor, typename ABlockWindow, typename BBlockWindow>
-    CK_TILE_DEVICE void operator()(CBlockTensor& c_block_tensor,
-                                   const ABlockWindow& a_block_window,
-                                   const BBlockWindow& b_block_window) const
-    {
-        static_assert(std::is_same_v<ADataType, typename ABlockWindow::DataType> &&
-                          std::is_same_v<BDataType, typename BBlockWindow::DataType> &&
-                          std::is_same_v<CDataType, typename CBlockTensor::DataType>,
-                      "wrong!");
-
-        constexpr index_t MPerBlock = ABlockWindow{}.get_window_lengths()[number<0>{}];
-        constexpr index_t NPerBlock = BBlockWindow{}.get_window_lengths()[number<0>{}];
-        constexpr index_t KPerBlock = ABlockWindow{}.get_window_lengths()[number<1>{}];
-
-        static_assert(MPerBlock == BlockGemmShape::kM && NPerBlock == BlockGemmShape::kN &&
-                          KPerBlock == BlockGemmShape::kK,
-                      "wrong!");
-
-        constexpr auto config = BlockPolicy::template GetWarpGemmMWarpNWarp<Problem>();
-
-        using WG = remove_cvref_t<decltype(config.template at<0>())>;
-
-        constexpr index_t MWarp = config.template at<1>();
-        constexpr index_t NWarp = config.template at<2>();
-
-        constexpr index_t MIterPerWarp = MPerBlock / (MWarp * WG::kM);
-        constexpr index_t NIterPerWarp = NPerBlock / (NWarp * WG::kN);
-        constexpr index_t KIterPerWarp = KPerBlock / WG::kK;
-
-        constexpr index_t MPerBlockPerIter = MPerBlock / MIterPerWarp;
-        constexpr index_t NPerBlockPerIter = NPerBlock / NIterPerWarp;
-        constexpr index_t KPerBlockPerIter = KPerBlock / KIterPerWarp;
-
-        const index_t iMWarp = get_warp_id() / NWarp;
-        const index_t iNWarp = get_warp_id() % NWarp;
-
-        // construct A-warp-window
-        auto a_warp_window_tmp = make_tile_window(
-            a_block_window.get_bottom_tensor_view(),
-            make_tuple(number<WG::kM>{}, number<WG::kK>{}),
-            a_block_window.get_window_origin() + multi_index<2>{iMWarp * WG::kM, 0},
-            make_static_tile_distribution(typename WG::AWarpDstrEncoding{}));
-
-#if 0 // FIXME: using array will cause register spill
-        array<array<decltype(a_warp_window_tmp), KIterPerWarp>, MIterPerWarp> a_warp_windows{
-            {a_warp_window_tmp}};
-
-        for(index_t mIter = 0; mIter < MIterPerWarp; mIter++)
-        {
-            for(index_t kIter = 0; kIter < KIterPerWarp; kIter++)
-            {
-                move_tile_window(a_warp_windows(mIter)(kIter),
-                                 {mIter * MPerBlockPerIter, kIter * KPerBlockPerIter});
-            }
-        }
-#else
-        statically_indexed_array<
-            statically_indexed_array<decltype(a_warp_window_tmp), KIterPerWarp>,
-            MIterPerWarp>
-            a_warp_windows;
-
-        static_for<0, MIterPerWarp, 1>{}([&](auto mIter) {
-            static_for<0, KIterPerWarp, 1>{}([&](auto kIter) {
-                a_warp_windows(mIter)(kIter) = a_warp_window_tmp;
-
-                move_tile_window(a_warp_windows(mIter)(kIter),
-                                 {mIter * MPerBlockPerIter, kIter * KPerBlockPerIter});
-            });
-        });
-#endif
-
-        // construct B-warp-window
-        auto b_warp_window_tmp = make_tile_window(
-            b_block_window.get_bottom_tensor_view(),
-            make_tuple(number<WG::kN>{}, number<WG::kK>{}),
-            b_block_window.get_window_origin() + multi_index<2>{iNWarp * WG::kN, 0},
-            make_static_tile_distribution(typename WG::BWarpDstrEncoding{}));
-
-#if 0 // FIXME: using array will cause register spill
-        array<array<decltype(b_warp_window_tmp), KIterPerWarp>, NIterPerWarp> b_warp_windows{
-            {b_warp_window_tmp}};
-
-        for(index_t nIter = 0; nIter < NIterPerWarp; nIter++)
-        {
-            for(index_t kIter = 0; kIter < KIterPerWarp; kIter++)
-            {
-                move_tile_window(b_warp_windows(nIter)(kIter),
-                                 {nIter * NPerBlockPerIter, kIter * KPerBlockPerIter});
-            }
-        }
-#else
-        statically_indexed_array<
-            statically_indexed_array<decltype(b_warp_window_tmp), KIterPerWarp>,
-            NIterPerWarp>
-            b_warp_windows;
-
-        static_for<0, NIterPerWarp, 1>{}([&](auto nIter) {
-            static_for<0, KIterPerWarp, 1>{}([&](auto kIter) {
-                b_warp_windows(nIter)(kIter) = b_warp_window_tmp;
-
-                move_tile_window(b_warp_windows(nIter)(kIter),
-                                 {nIter * NPerBlockPerIter, kIter * KPerBlockPerIter});
-            });
-        });
-#endif
-
-        using CWarpDstr   = typename WG::CWarpDstr;
-        using CWarpTensor = typename WG::CWarpTensor;
-
-        constexpr auto c_warp_y_lengths =
-            to_sequence(CWarpDstr{}.get_ys_to_d_descriptor().get_lengths());
+        constexpr auto c_warp_y_lengths     = to_sequence(CWarpDstr{}.get_ys_to_d_descriptor().get_lengths());
         constexpr auto c_warp_y_index_zeros = uniform_sequence_gen_t<CWarpDstr::NDimY, 0>{};
 
         // hot loop:
@@ -448,15 +273,39 @@ struct BlockFlatmmASmemBSmemCRegV1
     }
 
     // C = A * B
-    template <typename ABlockTensorTmp, typename BBlockWindow>
+    template <typename ABlockTensorTmp,
+              typename BFlatBlockWindow
+#ifdef FEIFEI_DEBUG
+              ,
+              typename BOriginBlockWindow
+#endif
+              >
     CK_TILE_DEVICE auto operator()(const ABlockTensorTmp& a_block_tensor_tmp,
-                                   const BBlockWindow& b_block_window) const
+                                   const BFlatBlockWindow& b_flat_block_window
+#ifdef FEIFEI_DEBUG
+                                   ,
+                                   const BOriginBlockWindow& b_origin_block_window,
+                                   int* dbg_int,
+                                   float* dbg_fp32,
+                                   void* dbg_f168
+#endif
+    ) const
     {
         auto c_block_tensor = MakeCBlockTile();
-        operator()(c_block_tensor, a_block_tensor_tmp, b_block_window);
+        operator()(c_block_tensor,
+                   a_block_tensor_tmp,
+                   b_flat_block_window
+#ifdef FEIFEI_DEBUG
+                   ,
+                   b_origin_block_window,
+                   dbg_int,
+                   dbg_fp32,
+                   dbg_f168
+#endif
+        );
         return c_block_tensor;
     }
-#endif
+
 };
 
 } // namespace ck_tile

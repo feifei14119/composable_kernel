@@ -14,13 +14,19 @@ template <typename T>
 auto shuffle_b(const ck_tile::HostTensor<T>& t, std::string mfma_dtype, int mfma_type = 0)
 {
     assert(t.get_lengths().size() == 2);
-    int n_ = t.get_lengths()[0];
-    int k_ = t.get_lengths()[1];
+    int n_ = t.get_lengths()[1];
+    int k_ = t.get_lengths()[0];
     printf("[FF] shuffle_b: mfma_dtype = %s, mfma_type = %d, n_ = %d, k_ = %d\n",
            mfma_dtype.c_str(),
            mfma_type,
            n_,
            k_);
+    {
+        ck_tile::HostTensor<T> t_view({n_ / 32, 32, k_ / 16, 2, 8});
+        std::copy(t.begin(), t.end(), t_view.begin());
+        return ck_tile::reference_permute(t_view, {0, 2, 3, 1, 4});
+    }
+
     if((mfma_dtype == "bf16" || mfma_dtype == "fp16") && mfma_type == 0)
     {
         ck_tile::HostTensor<T> t_view({n_ / 32, 32, k_ / 16, 2, 8});
@@ -81,7 +87,7 @@ float invoke_flatmm(ck_tile::DeviceMem& a_m_k_dev_buf,
                     ck_tile::index_t kbatch,
                     int n_warmup,
                     int n_repeat
-#if FEIFEI_DEBUG
+#ifdef FEIFEI_DEBUG
                     ,
                     ck_tile::DeviceMem& b_k_n_dev_buf,
                     ck_tile::DeviceMem& dbg_int_buf,
@@ -103,7 +109,7 @@ float invoke_flatmm(ck_tile::DeviceMem& a_m_k_dev_buf,
     args.stride_B = stride_B;
     args.stride_C = stride_C;
 
-#if FEIFEI_DEBUG
+#ifdef FEIFEI_DEBUG
     args.b_ptr        = b_k_n_dev_buf.GetDeviceBuffer();
     args.dbg_int_ptr  = dbg_int_buf.GetDeviceBuffer();
     args.dbg_fp32_ptr = dbg_fp32_buf.GetDeviceBuffer();
@@ -158,7 +164,7 @@ int run_flatmm_example_with_layouts(int argc,
     ck_tile::index_t kbatch = arg_parser.get_int("split_k");
     int n_warmup            = arg_parser.get_int("warmup");
     int n_repeat            = arg_parser.get_int("repeat");
-#if FEIFEI_DEBUG
+#ifdef FEIFEI_DEBUG
     n_warmup = 1;
     n_repeat = 2;
 #endif
@@ -182,7 +188,7 @@ int run_flatmm_example_with_layouts(int argc,
     ck_tile::DeviceMem b_k_n_dev_buf(b_k_n.get_element_space_size_in_bytes());
     ck_tile::DeviceMem c_m_n_dev_buf(c_m_n_dev_result.get_element_space_size_in_bytes());
 
-#if FEIFEI_DEBUG
+#ifdef FEIFEI_DEBUG
     ck_tile::HostTensor<int> dbg_int({M * N * DEBUG_CNT});
     ck_tile::HostTensor<float> dbg_fp32({M * N * DEBUG_CNT});
     ck_tile::HostTensor<ADataType> dbg_f168({M * N * DEBUG_CNT});
@@ -215,7 +221,7 @@ int run_flatmm_example_with_layouts(int argc,
                                              kbatch,
                                              n_warmup,
                                              n_repeat
-#if FEIFEI_DEBUG
+#ifdef FEIFEI_DEBUG
                                              ,
                                              b_k_n_dev_buf,
                                              dbg_int_buf,
@@ -248,7 +254,7 @@ int run_flatmm_example_with_layouts(int argc,
                   << " Absolute error threshold: " << rtol_atol.at(ck_tile::number<1>{})
                   << std::endl;
         std::cout << "The CPU veification result is:" << (pass ? "correct" : "fail") << std::endl;
-#if FEIFEI_DEBUG
+#ifdef FEIFEI_DEBUG
         // c_ref
         {
             std::ofstream file("ff_c_cpu_ref.txt");
@@ -330,7 +336,7 @@ int run_flatmm_example_with_layouts(int argc,
                   << " Absolute error threshold: " << rtol_atol.at(ck_tile::number<1>{})
                   << std::endl;
         std::cout << "The GPU veification result is: " << (pass ? "correct" : "fail") << std::endl;
-#if FEIFEI_DEBUG
+#ifdef FEIFEI_DEBUG
         // c_ref
         {
             std::ofstream file("ff_c_gpu_ref.txt");
@@ -357,8 +363,8 @@ int run_flatmm_example_with_layouts(int argc,
 #endif
     }
 
-#if FEIFEI_DEBUG
-    int GridDimX  = 1;
+#ifdef FEIFEI_DEBUG
+    int GridDimX  = 2;
     int GridDimY  = 1;
     int BlockDimX = 64;
     int BlockDimY = 4;
@@ -415,8 +421,8 @@ int run_flatmm_example_with_layouts(int argc,
     // b_shuffle
     {
         std::ofstream file("ff_b_shuffle_host.txt");
-        int X = 32 * 32;
-        int Y = static_cast<int>(N) * static_cast<int>(M) / X;
+        int X = 32 * K;
+        int Y = static_cast<int>(N) * static_cast<int>(K) / X;
         file << " [b_shuffle_host]: Row = " << Y << ", Col = " << X << std::endl;
 
         for(int y = 0; y < Y; y++)
