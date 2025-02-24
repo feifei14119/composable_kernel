@@ -28,8 +28,8 @@ struct FlatmmPipelineAGmemBGmemCRegV1
     static constexpr index_t kNPerBlock = BlockGemmShape::kN;
     static constexpr index_t kKPerBlock = BlockGemmShape::kK;
 
-    static constexpr index_t kFlatKPerBlock = BlockGemmShape::kFlatKPerBlock;
-    static constexpr index_t kFlatNPerBlock = BlockGemmShape::kFlatNPerBlock;
+    static constexpr index_t flatKPerWarp = BlockGemmShape::flatKPerWarp;
+    static constexpr index_t flatNPerWarp = BlockGemmShape::flatNPerWarp;
 
     static constexpr index_t GetVectorSizeA() { return Problem::VectorSizeA; }
     static constexpr index_t GetVectorSizeB() { return Problem::VectorSizeB; }
@@ -40,6 +40,16 @@ struct FlatmmPipelineAGmemBGmemCRegV1
     static constexpr bool kPadK = Problem::kPadK;
 
     static constexpr index_t kLdsAlignmentInBytes = 16;
+
+    static constexpr auto I0 = number<0>();
+    static constexpr auto I1 = number<1>();
+    static constexpr auto I2 = number<2>();
+    static constexpr auto idxM = I0;
+    static constexpr auto idxN = I1;
+    static constexpr auto idxK = I2;
+    using BlockTile  = remove_cvref_t<typename BlockGemmShape::BlockTile>;
+    using BlockWarps = remove_cvref_t<typename BlockGemmShape::BlockWarps>;
+    using WarpTile   = remove_cvref_t<typename BlockGemmShape::WarpTile>;
 
     [[nodiscard]] CK_TILE_HOST static const std::string GetName()
     {
@@ -89,7 +99,25 @@ struct FlatmmPipelineAGmemBGmemCRegV1
         {
             printf("[PIPELN] FlatmmPipelinen():\n");
             printf("[PIPELN] num_loop = %d\n", num_loop);
-            printf("[PIPELN] kFlatKPerBlock = %d, kFlatNPerBlock = %d\n", kFlatKPerBlock, kFlatNPerBlock);
+            printf("[PIPELN] flatKPerWarp = %d, flatNPerWarp = %d\n", flatKPerWarp, flatNPerWarp);
+
+            printf("[debug ] BlockTile  = [%d, %d, %d]\n",
+                static_cast<int>(BlockTile::at(idxM)),
+                static_cast<int>(BlockTile::at(idxN)),
+                static_cast<int>(BlockTile::at(idxK)));
+            printf("[debug ] BlockWarps = [%d, %d, %d]\n",
+                static_cast<int>(BlockWarps::at(idxM)),
+                static_cast<int>(BlockWarps::at(idxN)),
+                static_cast<int>(BlockWarps::at(idxK)));
+            printf("[debug ] WarpTile   = [%d, %d, %d]\n",
+                static_cast<int>(WarpTile::at(idxM)),
+                static_cast<int>(WarpTile::at(idxN)),
+                static_cast<int>(WarpTile::at(idxK)));
+            printf("[debug ] flatWarp   = [%d, %d]\n",
+                static_cast<int>(BlockGemmShape::flatNPerWarp),
+                static_cast<int>(BlockGemmShape::flatKPerWarp));
+            printf("[debug ] flatBlock  = [%d]\n",
+                static_cast<int>(BlockGemmShape::flatKPerBlock));
         }
 
         uint32_t tidx = threadIdx.x;
@@ -179,7 +207,7 @@ struct FlatmmPipelineAGmemBGmemCRegV1
         auto b_flat_distribution = PipelinePolicy::template MakeBFlatDramTileDistribution<Problem>();
         auto b_flat_dram_window  =                                               // tile_window_with_static_distribution
             make_tile_window(b_flat_dram_block_window_tmp.get_bottom_tensor_view(),  // from kernel gemm_pad_views
-                             make_tuple(number<kFlatNPerBlock>{}, number<kFlatKPerBlock>{}),
+                             make_tuple(number<flatNPerWarp>{}, number<flatKPerWarp>{}),
                              b_flat_dram_block_window_tmp.get_window_origin(),
                              b_flat_distribution);
 
@@ -321,7 +349,7 @@ struct FlatmmPipelineAGmemBGmemCRegV1
             }
 
             // move to next flat K
-            move_tile_window(b_flat_dram_window, {0, 2048}); // feifei TODO
+            move_tile_window(b_flat_dram_window, {0, BlockGemmShape::flatKPerBlock});
 
             iCounter--;
         }

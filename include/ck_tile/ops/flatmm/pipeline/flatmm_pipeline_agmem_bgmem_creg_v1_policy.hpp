@@ -327,7 +327,7 @@ struct UniversalFlatmmPipelineAgBgCrPolicy
         constexpr index_t NWavePerBlk = TileShape::BlockWarps::at(TileShape::idxN); // N_Warp
         constexpr index_t NRepeat     = 1;
 
-        constexpr index_t WaveRepeat  = WaveNum / TileShape::kFlatNPerBlock;
+        constexpr index_t WaveRepeat  = WaveNum / TileShape::flatNPerWarp;
 
         /*static_assert(KBPerLoad * KThdPerWave * KWavePerBlk * KRepeat * NBPerLoad * NThdPerWave *
                           NWavePerBlk * NRepeat ==
@@ -339,7 +339,7 @@ struct UniversalFlatmmPipelineAgBgCrPolicy
             printf("[PIPELN] MakeBFlatDramTileDistribution():\n");
             printf("[PIPELN] KPerTile = %d, NPerTile = %d, BPerTile = %d\n", KPerTile, NPerTile, KPerTile * NPerTile);
             printf("[PIPELN] BlockSize = %d, WaveSize = %d, VectorLoadSize = %d\n", BlockSize, WaveSize, Problem::VectorLoadSize);
-            printf("[PIPELN] kFlatKPerBlock = %d, kFlatNPerBlock = %d\n", TileShape::kFlatKPerBlock, TileShape::kFlatNPerBlock);
+            printf("[PIPELN] flatKPerWarp = %d, flatNPerWarp = %d\n", TileShape::flatKPerWarp, TileShape::flatNPerWarp);
             printf("[PIPELN] KBPerLoad = %d, KThdPerWave = %d, KWavePerBlk = %d, KRepeat = %d\n", KBPerLoad, KThdPerWave, KWavePerBlk, KRepeat);
             printf("[PIPELN] NBPerLoad = %d, NThdPerWave = %d, NWavePerBlk = %d, NRepeat = %d\n", NBPerLoad, NThdPerWave, NWavePerBlk, NRepeat);
             printf("[PIPELN] WaveRepeat = %d\n", WaveRepeat);

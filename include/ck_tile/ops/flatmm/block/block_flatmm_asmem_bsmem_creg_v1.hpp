@@ -21,6 +21,16 @@ struct BlockFlatmmASmemBSmemCRegV1
     using CDataType      = remove_cvref_t<typename Problem::CDataType>;
     using BlockGemmShape = remove_cvref_t<typename Problem::BlockGemmShape>; // TileFlatmmShape
 
+    static constexpr auto I0 = number<0>();
+    static constexpr auto I1 = number<1>();
+    static constexpr auto I2 = number<2>();
+    static constexpr auto idxM = I0;
+    static constexpr auto idxN = I1;
+    static constexpr auto idxK = I2;
+    using BlockTile  = remove_cvref_t<typename BlockGemmShape::BlockTile>;
+    using BlockWarps = remove_cvref_t<typename BlockGemmShape::BlockWarps>;
+    using WarpTile   = remove_cvref_t<typename BlockGemmShape::WarpTile>;
+
     static constexpr index_t kBlockSize = Problem::kBlockSize;
 
     CK_TILE_DEVICE static constexpr auto MakeCBlockTile()
@@ -105,12 +115,9 @@ struct BlockFlatmmASmemBSmemCRegV1
                           std::is_same_v<CDataType, typename CBlockTensor::DataType>,
                       "wrong!");
         constexpr index_t MPerBlock = ABlockWindow{}.get_window_lengths()[number<0>{}];
-        //constexpr index_t NPerBlock = BFlatBlockWindow{}.get_window_lengths()[number<0>{}];
-        constexpr index_t NPerBlock = BOriginBlockWindow{}.get_window_lengths()[number<0>{}]; // feifei TODO: get from flat window
         constexpr index_t KPerBlock = ABlockWindow{}.get_window_lengths()[number<1>{}];
 
-        static_assert(MPerBlock == BlockGemmShape::kM && NPerBlock == BlockGemmShape::kN &&
-                          KPerBlock == BlockGemmShape::kK,
+        static_assert(MPerBlock == BlockGemmShape::kM && KPerBlock == BlockGemmShape::kK,
                       "wrong!");
 
         constexpr auto config = BlockPolicy::template GetWarpGemmMWarpNWarp<Problem>();
@@ -120,15 +127,14 @@ struct BlockFlatmmASmemBSmemCRegV1
         constexpr index_t NWarp = config.template at<2>();
 
         constexpr index_t MIterPerWarp = MPerBlock / (MWarp * WG::kM);
-        constexpr index_t NIterPerWarp = NPerBlock / (NWarp * WG::kN);
+        constexpr index_t NIterPerWarp = BlockTile::at(idxN) / (WarpTile::at(idxN) * BlockWarps::at(idxN));
         constexpr index_t KIterPerWarp = KPerBlock / WG::kK;
 
         constexpr index_t MPerBlockPerIter = MPerBlock / MIterPerWarp;
-        constexpr index_t NPerBlockPerIter = NPerBlock / NIterPerWarp;
         constexpr index_t KPerBlockPerIter = KPerBlock / KIterPerWarp;
 
-        constexpr index_t NFlatPerBlockPerIter = BlockGemmShape::kFlatNPerBlock;
-        constexpr index_t KFlatPerBlockPerIter = BlockGemmShape::kFlatKPerBlock;
+        constexpr index_t NFlatPerBlockPerIter = BlockGemmShape::flatNPerWarp;
+        constexpr index_t KFlatPerBlockPerIter = BlockGemmShape::flatKPerWarp;
 
         const index_t iMWarp = get_warp_id() / NWarp;
         const index_t iNWarp = get_warp_id() % NWarp;
@@ -169,6 +175,10 @@ struct BlockFlatmmASmemBSmemCRegV1
 
 #ifdef FEIFEI_DEBUG
         // construct B-warp-window
+        constexpr index_t NPerBlockOrigin = BOriginBlockWindow{}.get_window_lengths()[number<0>{}];
+        constexpr index_t NIterPerWarpOrigin = NPerBlockOrigin / (NWarp * WG::kN);
+        constexpr index_t NPerBlockPerIter = NPerBlockOrigin / NIterPerWarpOrigin;
+
         auto b_origin_warp_window_tmp = make_tile_window(
             b_origin_block_window.get_bottom_tensor_view(),
             make_tuple(number<WG::kN>{}, number<WG::kK>{}),
@@ -176,9 +186,9 @@ struct BlockFlatmmASmemBSmemCRegV1
             make_static_tile_distribution(typename WG::BWarpDstrEncoding{}));
         statically_indexed_array<
             statically_indexed_array<decltype(b_origin_warp_window_tmp), KIterPerWarp>,
-            NIterPerWarp>
+            NIterPerWarpOrigin>
             b_origin_warp_windows;
-        static_for<0, NIterPerWarp, 1>{}([&](auto nIter) {
+        static_for<0, NIterPerWarpOrigin, 1>{}([&](auto nIter) {
             static_for<0, KIterPerWarp, 1>{}([&](auto kIter) {
                 b_origin_warp_windows(nIter)(kIter) = b_origin_warp_window_tmp;
 
@@ -191,11 +201,6 @@ struct BlockFlatmmASmemBSmemCRegV1
         constexpr auto mIterDbg  = number<0>{};
         constexpr auto nIterDbg  = number<0>{};
         constexpr auto kIterDbg  = number<0>{};
-        if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
-        {
-            printf("[BLOCK ] WG::kM = %d, WG::kM = %d, WG::kK = %d, WG::kKPerThread = %d\n", WG::kM, WG::kN, WG::kK, WG::kKPerThread);
-            printf("[BLOCK ] MIterPerWarp = %d, NIterPerWarp = %d, KIterPerWarp = %d\n", MIterPerWarp, NIterPerWarp, KIterPerWarp);
-        }
 
         // debug A lds read
         const auto a_warp_tensor_dbg = load_tile(a_warp_windows(mIterDbg)(kIterDbg));

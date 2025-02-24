@@ -69,7 +69,7 @@ struct FlatmmKernel
 {
     using TilePartitioner                    = remove_cvref_t<TilePartitioner_>;
     using FlatmmPipeline                     = remove_cvref_t<FlatmmPipeline_>;
-    using BlockGemmShape                     = remove_cvref_t<typename FlatmmPipeline::BlockGemmShape>;
+    using BlockGemmShape                     = remove_cvref_t<typename FlatmmPipeline::BlockGemmShape>; // TileFlatmmShape
     using EpiloguePipeline                   = remove_cvref_t<EpiloguePipeline_>;
     using ALayout                            = remove_cvref_t<typename FlatmmPipeline::ALayout>;
     using BLayout                            = remove_cvref_t<typename FlatmmPipeline::BLayout>;
@@ -84,6 +84,9 @@ struct FlatmmKernel
     static constexpr auto I0 = number<0>();
     static constexpr auto I1 = number<1>();
     static constexpr auto I2 = number<2>();
+    static constexpr auto idxM = I0;
+    static constexpr auto idxN = I1;
+    static constexpr auto idxK = I2;
 
     [[nodiscard]] CK_TILE_HOST static const std::string GetName()
     {
@@ -521,6 +524,11 @@ struct FlatmmKernel
 
         const index_t num_loop = TilePartitioner::GetLoopNum(splitk_batch_offset.splitted_k);
 
+        index_t kFlatK =
+            FlatmmPipeline::flatKPerWarp *
+            (splitk_batch_offset.splitted_k / BlockGemmShape::WarpTile::at(number<2>{}));
+        index_t kFlatN = kargs.N * kargs.K / kFlatK;
+
 #ifdef FEIFEI_DEBUG
         ////////////////////////////////////////////////////////
         const auto& a_gemm_tensor_views = gemm_tensor_views_tuple.at(I0); // tensor_view
@@ -569,15 +577,6 @@ struct FlatmmKernel
         ////////////////////////////////////////////////////////
 #endif
 
-        index_t kFlatK =
-            FlatmmPipeline::kFlatKPerBlock *
-            (splitk_batch_offset.splitted_k / BlockGemmShape::WarpTile::at(number<2>{}));
-        index_t kFlatN = kargs.N * kargs.K / kFlatK;
-        if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
-        {
-            printf("[KERNEL] kFlatK = %d, kFlatN = %d\n", kFlatK, kFlatN);
-        }
-
         const auto& b_flat_tensor_view = [&]() {
             return make_naive_tensor_view<address_space_enum::global>(
                 b_shuffle_ptr,
@@ -598,8 +597,8 @@ struct FlatmmKernel
             {block_idx_n, 0});*/
         const auto& b_flat_block_window = make_tile_window(
             b_flat_tensor_view,
-            make_tuple(number<FlatmmPipeline::kFlatNPerBlock>{}, number<FlatmmPipeline::kFlatKPerBlock>{}),
-            {static_cast<int>(block_idx_n / 32), 0});  // feifei TODO: 
+            make_tuple(number<FlatmmPipeline::flatNPerWarp>{}, number<FlatmmPipeline::flatKPerWarp>{}),
+            {static_cast<int>(block_idx_n / BlockGemmShape::WarpTile::at(idxN)), 0});
 
         // Run GEMM cooperatively by whole workgroup.
         const auto& a_block_window = gemm_tile_windows.at(I0);
