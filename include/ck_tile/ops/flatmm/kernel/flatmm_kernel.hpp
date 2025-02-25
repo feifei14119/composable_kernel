@@ -67,9 +67,10 @@ struct FlatmmHostArgs : public FlatmmProblem
 template <typename TilePartitioner_, typename FlatmmPipeline_, typename EpiloguePipeline_>
 struct FlatmmKernel
 {
-    using TilePartitioner                    = remove_cvref_t<TilePartitioner_>;
-    using FlatmmPipeline                     = remove_cvref_t<FlatmmPipeline_>;
-    using BlockGemmShape                     = remove_cvref_t<typename FlatmmPipeline::BlockGemmShape>; // TileFlatmmShape
+    using TilePartitioner = remove_cvref_t<TilePartitioner_>;
+    using FlatmmPipeline  = remove_cvref_t<FlatmmPipeline_>;
+    using BlockGemmShape =
+        remove_cvref_t<typename FlatmmPipeline::BlockGemmShape>; // TileFlatmmShape
     using EpiloguePipeline                   = remove_cvref_t<EpiloguePipeline_>;
     using ALayout                            = remove_cvref_t<typename FlatmmPipeline::ALayout>;
     using BLayout                            = remove_cvref_t<typename FlatmmPipeline::BLayout>;
@@ -81,9 +82,9 @@ struct FlatmmKernel
     // Below type is actually accumulation data type - the output of block GEMM.
     using CDataType = remove_cvref_t<typename EpiloguePipeline::ODataType>;
 
-    static constexpr auto I0 = number<0>();
-    static constexpr auto I1 = number<1>();
-    static constexpr auto I2 = number<2>();
+    static constexpr auto I0   = number<0>();
+    static constexpr auto I1   = number<1>();
+    static constexpr auto I2   = number<2>();
     static constexpr auto idxM = I0;
     static constexpr auto idxN = I1;
     static constexpr auto idxK = I2;
@@ -301,10 +302,15 @@ struct FlatmmKernel
 
     template <memory_operation_enum DstInMemOp = memory_operation_enum::set>
     CK_TILE_DEVICE static auto MakeGemmTensorViews(const ADataType* a_ptr,
-                                                   const BDataType* b_ptr,
+                                                   const BDataType* b_flat_ptr,
                                                    CDataType* c_ptr,
                                                    const FlatmmKernelArgs& kargs,
-                                                   const SplitKBatchOffset& splitk_batch_offset)
+                                                   const SplitKBatchOffset& splitk_batch_offset
+#ifdef FEIFEI_DEBUG
+                                                   ,
+                                                   const BDataType* b_ptr
+#endif
+    )
     {
         const auto& a_tensor_view = [&]() {
             if constexpr(std::is_same_v<ALayout, tensor_layout::gemm::RowMajor>)
@@ -327,25 +333,16 @@ struct FlatmmKernel
             }
         }();
 
-        const auto& b_tensor_view = [&]() {
-            if constexpr(std::is_same_v<BLayout, tensor_layout::gemm::RowMajor>)
-            {
-                return make_naive_tensor_view<address_space_enum::global>(
-                    b_ptr,
-                    make_tuple(splitk_batch_offset.splitted_k, kargs.N),
-                    make_tuple(kargs.stride_B, 1),
-                    number<FlatmmPipeline::GetVectorSizeB()>{},
-                    number<1>{});
-            }
-            else
-            {
-                return make_naive_tensor_view<address_space_enum::global>(
-                    b_ptr,
-                    make_tuple(kargs.N, splitk_batch_offset.splitted_k),
-                    make_tuple(kargs.stride_B, 1),
-                    number<FlatmmPipeline::GetVectorSizeB()>{},
-                    number<1>{});
-            }
+        index_t kFlatK = FlatmmPipeline::flatKPerWarp * (splitk_batch_offset.splitted_k /
+                                                         BlockGemmShape::WarpTile::at(number<2>{}));
+        index_t kFlatN = kargs.N * kargs.K / kFlatK;
+        const auto& b_flat_tensor_view = [&]() {
+            return make_naive_tensor_view<address_space_enum::global>(
+                b_flat_ptr,
+                make_tuple(kFlatN, kFlatK),
+                make_tuple(kFlatK, 1),
+                number<FlatmmPipeline::GetVectorSizeB()>{},
+                number<1>{});
         }();
 
         // TODO: enable vector write for C in ColMajor
@@ -370,7 +367,32 @@ struct FlatmmKernel
             }
         }();
 
-        return make_tuple(a_tensor_view, b_tensor_view, c_tensor_view);
+#ifdef FEIFEI_DEBUG
+        const auto& b_tensor_view = [&]() {
+            if constexpr(std::is_same_v<BLayout, tensor_layout::gemm::RowMajor>)
+            {
+                return make_naive_tensor_view<address_space_enum::global>(
+                    b_ptr,
+                    make_tuple(splitk_batch_offset.splitted_k, kargs.N),
+                    make_tuple(kargs.stride_B, 1),
+                    number<FlatmmPipeline::GetVectorSizeB()>{},
+                    number<1>{});
+            }
+            else
+            {
+                return make_naive_tensor_view<address_space_enum::global>(
+                    b_ptr,
+                    make_tuple(kargs.N, splitk_batch_offset.splitted_k),
+                    make_tuple(kargs.stride_B, 1),
+                    number<FlatmmPipeline::GetVectorSizeB()>{},
+                    number<1>{});
+            }
+        }();
+
+        return make_tuple(a_tensor_view, b_flat_tensor_view, c_tensor_view, b_tensor_view);
+#else
+        return make_tuple(a_tensor_view, b_flat_tensor_view, c_tensor_view);
+#endif
     }
 
     template <typename TensorView>
@@ -394,23 +416,23 @@ struct FlatmmKernel
             }
         }();
 
-        const auto& b_pad_view = [&]() {
-            const auto& b_tensor_view = views.at(I1);
+        const auto& b_flat_tensor_view = views.at(I1);
+        /*const auto& b_flat_pad_view    = [&]() {
             if constexpr(std::is_same_v<BLayout, tensor_layout::gemm::ColumnMajor>)
             {
-                return pad_tensor_view(b_tensor_view,
+                return pad_tensor_view(b_flat_tensor_view,
                                        make_tuple(number<TilePartitioner::NPerBlock>{},
                                                   number<TilePartitioner::KPerBlock>{}),
                                        sequence<false, FlatmmPipeline::kPadK>{});
             }
             else
             {
-                return pad_tensor_view(b_tensor_view,
+                return pad_tensor_view(b_flat_tensor_view,
                                        make_tuple(number<TilePartitioner::KPerBlock>{},
                                                   number<TilePartitioner::NPerBlock>{}),
                                        sequence<false, FlatmmPipeline::kPadN>{});
             }
-        }();
+        }();*/
 
         // TODO vector write in for C in ColMajor
         const auto& c_pad_view = [&]() {
@@ -431,16 +453,38 @@ struct FlatmmKernel
             }
         }();
 
-        return make_tuple(a_pad_view, b_pad_view, c_pad_view);
+#ifdef FEIFEI_DEBUG
+        const auto& b_pad_view = [&]() {
+            const auto& b_tensor_view = views.at(number<3>());
+            if constexpr(std::is_same_v<BLayout, tensor_layout::gemm::ColumnMajor>)
+            {
+                return pad_tensor_view(b_tensor_view,
+                                       make_tuple(number<TilePartitioner::NPerBlock>{},
+                                                  number<TilePartitioner::KPerBlock>{}),
+                                       sequence<false, FlatmmPipeline::kPadK>{});
+            }
+            else
+            {
+                return pad_tensor_view(b_tensor_view,
+                                       make_tuple(number<TilePartitioner::KPerBlock>{},
+                                                  number<TilePartitioner::NPerBlock>{}),
+                                       sequence<false, FlatmmPipeline::kPadN>{});
+            }
+        }();
+
+        return make_tuple(a_pad_view, b_flat_tensor_view, c_pad_view, b_pad_view);
+#else
+        return make_tuple(a_pad_view, b_flat_tensor_view, c_pad_view);
+#endif
     }
 
     template <typename PadView>
     CK_TILE_DEVICE static auto
     MakeGemmTileWindows(const PadView& views, const index_t i_m, const index_t i_n)
     {
-        const auto& a_pad_view = views.at(I0);
-        const auto& b_pad_view = views.at(I1);
-        const auto& c_pad_view = views.at(I2);
+        const auto& a_pad_view      = views.at(I0);
+        const auto& b_flat_pad_view = views.at(I1);
+        const auto& c_pad_view      = views.at(I2);
 
         const auto& a_block_window = [&]() {
             if constexpr(std::is_same_v<ALayout, tensor_layout::gemm::RowMajor>)
@@ -459,6 +503,19 @@ struct FlatmmKernel
             }
         }();
 
+        const auto& b_flat_block_window =
+            make_tile_window(b_flat_pad_view,
+                             make_tuple(number<FlatmmPipeline::flatNPerWarp>{},
+                                        number<FlatmmPipeline::flatKPerWarp>{}),
+                             {static_cast<int>(i_n / BlockGemmShape::WarpTile::at(idxN)), 0});
+
+        auto c_block_window = make_tile_window(
+            c_pad_view,
+            make_tuple(number<TilePartitioner::MPerBlock>{}, number<TilePartitioner::NPerBlock>{}),
+            {i_m, i_n});
+
+#ifdef FEIFEI_DEBUG
+        const auto& b_pad_view     = views.at(number<3>());
         const auto& b_block_window = [&]() {
             if constexpr(std::is_same_v<BLayout, tensor_layout::gemm::ColumnMajor>)
             {
@@ -476,19 +533,17 @@ struct FlatmmKernel
             }
         }();
 
-        auto c_block_window = make_tile_window(
-            c_pad_view,
-            make_tuple(number<TilePartitioner::MPerBlock>{}, number<TilePartitioner::NPerBlock>{}),
-            {i_m, i_n});
-
-        return make_tuple(a_block_window, b_block_window, c_block_window);
+        return make_tuple(a_block_window, b_flat_block_window, c_block_window, b_block_window);
+#else
+        return make_tuple(a_block_window, b_flat_block_window, c_block_window);
+#endif
     }
 
     template <memory_operation_enum DstInMemOp = memory_operation_enum::set>
     CK_TILE_DEVICE static void RunFlatmm(const ADataType* a_ptr,
-                                         const BDataType* b_shuffle_ptr,
+                                         const BDataType* b_flat_ptr,
                                          CDataType* c_ptr,
-                                         void* smem_ptr_0,
+                                         void* smem_ptr,
                                          const FlatmmKernelArgs& kargs,
                                          const SplitKBatchOffset& splitk_batch_offset,
                                          const index_t block_idx_m,
@@ -517,20 +572,22 @@ struct FlatmmKernel
 #endif
 
         // Create Gemm tensor views, pad views and tile windows
-        const auto& gemm_tensor_views_tuple =
-            MakeGemmTensorViews<DstInMemOp>(a_ptr, b_ptr, c_ptr, kargs, splitk_batch_offset);
+        const auto& gemm_tensor_views_tuple = MakeGemmTensorViews<DstInMemOp>(a_ptr,
+                                                                              b_flat_ptr,
+                                                                              c_ptr,
+                                                                              kargs,
+                                                                              splitk_batch_offset
+#ifdef FEIFEI_DEBUG
+                                                                              ,
+                                                                              b_ptr
+#endif
+        );
         const auto& gemm_pad_views = MakeGemmPadViews(gemm_tensor_views_tuple);
         auto gemm_tile_windows     = MakeGemmTileWindows(gemm_pad_views, block_idx_m, block_idx_n);
 
         const index_t num_loop = TilePartitioner::GetLoopNum(splitk_batch_offset.splitted_k);
 
-        index_t kFlatK =
-            FlatmmPipeline::flatKPerWarp *
-            (splitk_batch_offset.splitted_k / BlockGemmShape::WarpTile::at(number<2>{}));
-        index_t kFlatN = kargs.N * kargs.K / kFlatK;
-
 #ifdef FEIFEI_DEBUG
-        ////////////////////////////////////////////////////////
         const auto& a_gemm_tensor_views = gemm_tensor_views_tuple.at(I0); // tensor_view
         const auto& a_gemm_tensor_desc  = a_gemm_tensor_views.desc_;      // tensor_descriptor
         const auto& a_gemm_buff_views   = a_gemm_tensor_views.buf_;       // buffer_view
@@ -572,56 +629,35 @@ struct FlatmmKernel
         if(threadIdx.x == 0 && threadIdx.y == 0)
         {
             printf("[KERNEL] blockIdx.x = %d: block_idx_n = %d, block_idx_m = %d\n",
-                   static_cast<int>(blockIdx.x), block_idx_n, block_idx_n);
+                   static_cast<int>(blockIdx.x),
+                   block_idx_n,
+                   block_idx_n);
         }
-        ////////////////////////////////////////////////////////
 #endif
-
-        const auto& b_flat_tensor_view = [&]() {
-            return make_naive_tensor_view<address_space_enum::global>(
-                b_shuffle_ptr,
-                make_tuple(kFlatN, kFlatK),
-                make_tuple(kFlatK, 1),
-                number<FlatmmPipeline::GetVectorSizeB()>{},
-                number<1>{});
-        }();
-        /*const auto& b_flat_pad_view = [&]() {
-            return pad_tensor_view(b_flat_tensor_view,
-                                   make_tuple(number<TilePartitioner::NPerBlock>{},
-                                              number<TilePartitioner::KPerBlock>{}),
-                                   sequence<false, FlatmmPipeline::kPadK>{});
-        }();
-        const auto& b_flat_block_window = make_tile_window(
-            b_flat_pad_view,
-            make_tuple(number<TilePartitioner::NPerBlock>{}, number<TilePartitioner::KPerBlock>{}),
-            {block_idx_n, 0});*/
-        const auto& b_flat_block_window = make_tile_window(
-            b_flat_tensor_view,
-            make_tuple(number<FlatmmPipeline::flatNPerWarp>{}, number<FlatmmPipeline::flatKPerWarp>{}),
-            {static_cast<int>(block_idx_n / BlockGemmShape::WarpTile::at(idxN)), 0});
 
         // Run GEMM cooperatively by whole workgroup.
-        const auto& a_block_window = gemm_tile_windows.at(I0);
-        const auto& b_block_window = gemm_tile_windows.at(I1);
-        const auto& c_block_tile = FlatmmPipeline{}.template operator()(a_block_window,
-                                                                        b_flat_block_window,
-                                                                        num_loop,
-                                                                        smem_ptr_0
+        const auto& a_block_window      = gemm_tile_windows.at(I0);
+        const auto& b_flat_block_window = gemm_tile_windows.at(I1);
+        const auto& c_block_tile =
+            FlatmmPipeline{}.template operator()(a_block_window,
+                                                 b_flat_block_window,
+                                                 num_loop,
+                                                 smem_ptr
 #ifdef FEIFEI_DEBUG
-                                                                        ,
-                                                                        b_block_window,
-                                                                        dbg_int,
-                                                                        dbg_fp32,
-                                                                        dbg_f168
+                                                 ,
+                                                 gemm_tile_windows.at(number<3>()),
+                                                 dbg_int,
+                                                 dbg_fp32,
+                                                 dbg_f168
 #endif
-        );
+            );
 
         // Run Epilogue Pipeline
         auto& c_block_window = gemm_tile_windows.at(I2);
 
         EpiloguePipeline{}
             .template operator()<decltype(c_block_window), decltype(c_block_tile), DstInMemOp>(
-                c_block_window, c_block_tile, smem_ptr_0);
+                c_block_window, c_block_tile, smem_ptr);
     }
 
     CK_TILE_DEVICE void operator()(FlatmmKernelArgs kargs) const
@@ -671,20 +707,19 @@ struct FlatmmKernel
         // options
         const ADataType* a_ptr =
             static_cast<const ADataType*>(kargs.a_ptr) + splitk_batch_offset.a_k_split_offset;
-        const BDataType* b_shuffle_ptr = static_cast<const BDataType*>(kargs.b_shuffle_ptr) +
-                                         splitk_batch_offset.b_k_split_offset;
+        const BDataType* b_flat_ptr = static_cast<const BDataType*>(kargs.b_shuffle_ptr) +
+                                      splitk_batch_offset.b_k_split_offset;
         CDataType* c_ptr = static_cast<CDataType*>(kargs.c_ptr);
 
         // allocate LDS
-        __shared__ char smem_ptr_0[GetSmemSize()];
-        __shared__ char smem_ptr_1[GetSmemSize()];
+        __shared__ char smem_ptr[GetSmemSize()];
 
         if(kargs.k_batch == 1)
         {
             RunFlatmm(a_ptr,
-                      b_shuffle_ptr,
+                      b_flat_ptr,
                       c_ptr,
-                      smem_ptr_0,
+                      smem_ptr,
                       kargs,
                       splitk_batch_offset,
                       i_m,
@@ -706,9 +741,9 @@ struct FlatmmKernel
                            is_any_of<CDataType, fp16_t, bf16_t>::value))
             {
                 RunFlatmm<memory_operation_enum::atomic_add>(a_ptr,
-                                                             b_ptr,
+                                                             b_flat_ptr,
                                                              c_ptr,
-                                                             smem_ptr_0,
+                                                             smem_ptr,
                                                              kargs,
                                                              splitk_batch_offset,
                                                              i_m,

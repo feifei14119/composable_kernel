@@ -25,8 +25,8 @@ struct TileFlatmmShape
     static constexpr index_t kN = BlockTile::at(idxN);
     static constexpr index_t kK = BlockTile::at(idxK);
 
-    static constexpr index_t flatNPerWarp = BlockWarps::at(idxN);
-    static constexpr index_t flatKPerWarp = WarpTile::at(idxK) * WarpTile::at(idxN);
+    static constexpr index_t flatNPerWarp  = BlockWarps::at(idxN);
+    static constexpr index_t flatKPerWarp  = WarpTile::at(idxK) * WarpTile::at(idxN);
     static constexpr index_t flatKPerBlock = flatKPerWarp * kK / WarpTile::at(idxK);
 
     CK_TILE_HOST static std::string GetName()

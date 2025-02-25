@@ -16,16 +16,6 @@ auto shuffle_b(const ck_tile::HostTensor<T>& t, std::string mfma_dtype, int mfma
     assert(t.get_lengths().size() == 2);
     int n_ = t.get_lengths()[1];
     int k_ = t.get_lengths()[0];
-    printf("[FF] shuffle_b: mfma_dtype = %s, mfma_type = %d, n_ = %d, k_ = %d\n",
-           mfma_dtype.c_str(),
-           mfma_type,
-           n_,
-           k_);
-    {
-        ck_tile::HostTensor<T> t_view({n_ / 32, 32, k_ / 16, 2, 8});
-        std::copy(t.begin(), t.end(), t_view.begin());
-        return ck_tile::reference_permute(t_view, {0, 2, 3, 1, 4});
-    }
 
     if((mfma_dtype == "bf16" || mfma_dtype == "fp16") && mfma_type == 0)
     {
@@ -205,7 +195,7 @@ int run_flatmm_example_with_layouts(int argc,
 
     // do pre-shuffle
     std::string mfma                              = arg_parser.get_str("prec");
-    ck_tile::HostTensor<BDataType> b_shuffle_host = shuffle_b(b_k_n, mfma, 1);
+    ck_tile::HostTensor<BDataType> b_shuffle_host = shuffle_b(b_k_n, mfma, 0);
     ck_tile::DeviceMem b_shuffle_dev_buf(b_shuffle_host.get_element_space_size_in_bytes());
     b_shuffle_dev_buf.ToDevice(b_shuffle_host.data());
 

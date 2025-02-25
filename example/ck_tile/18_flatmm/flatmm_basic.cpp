@@ -37,28 +37,31 @@ float flatmm_calc(const ck_tile::FlatmmHostArgs& args, const ck_tile::stream_con
 
     using CodegenFlatmmShape =
         ck_tile::TileFlatmmShape<ck_tile::sequence<M_Tile, N_Tile, K_Tile>,
-                               ck_tile::sequence<M_Warp, N_Warp, K_Warp>,
-                               ck_tile::sequence<M_Warp_Tile, N_Warp_Tile, K_Warp_Tile>>;
+                                 ck_tile::sequence<M_Warp, N_Warp, K_Warp>,
+                                 ck_tile::sequence<M_Warp_Tile, N_Warp_Tile, K_Warp_Tile>>;
 
     using TilePartitioner = ck_tile::GemmTile1DPartitioner<CodegenFlatmmShape>;
 
     using CodegenGemmTraits =
         ck_tile::TileGemmTraits<kPadM, kPadN, kPadK, ALayout, BLayout, CLayout>;
-    using CodegenPipelineProblem = ck_tile::
-        GemmPipelineProblem<ADataType, BDataType, AccDataType, CodegenFlatmmShape, CodegenGemmTraits>;
-    using GemmEpilogue        = ck_tile::CShuffleEpilogue<
-        ck_tile::CShuffleEpilogueProblem<AccDataType,
-                                         CDataType,
-                                         CLayout,
-                                         CodegenPipelineProblem::kBlockSize,
-                                         TilePartitioner::MPerBlock,
-                                         TilePartitioner::NPerBlock,
-                                         M_Warp,
-                                         N_Warp,
-                                         M_Warp_Tile,
-                                         N_Warp_Tile,
-                                         K_Warp_Tile,
-                                         CodegenPipelineProblem::TransposeC>>;
+    using CodegenPipelineProblem = ck_tile::GemmPipelineProblem<ADataType,
+                                                                BDataType,
+                                                                AccDataType,
+                                                                CodegenFlatmmShape,
+                                                                CodegenGemmTraits>;
+    using GemmEpilogue           = ck_tile::CShuffleEpilogue<
+                  ck_tile::CShuffleEpilogueProblem<AccDataType,
+                                                   CDataType,
+                                                   CLayout,
+                                                   CodegenPipelineProblem::kBlockSize,
+                                                   TilePartitioner::MPerBlock,
+                                                   TilePartitioner::NPerBlock,
+                                                   M_Warp,
+                                                   N_Warp,
+                                                   M_Warp_Tile,
+                                                   N_Warp_Tile,
+                                                   K_Warp_Tile,
+                                                   CodegenPipelineProblem::TransposeC>>;
 
     using CodegenFlatmmPolicy = ck_tile::UniversalFlatmmPipelineAgBgCrPolicy;
     using CodegenFlatmmPipeline =
@@ -74,20 +77,6 @@ float flatmm_calc(const ck_tile::FlatmmHostArgs& args, const ck_tile::stream_con
     constexpr dim3 blocks = Kernel::BlockSize();
 
 #ifdef FEIFEI_DEBUG
-    /*using BlockFlatmmStruct = ck_tile::remove_cvref_t<decltype(CodegenFlatmmPolicy::template GetBlockFlatmm<CodegenPipelineProblem>())>;
-    auto block_flatmm = BlockFlatmmStruct(); // struct BlockFlatmmASmemBSmemCRegV1
-    //auto ADramTileDistr = CodegenFlatmmPolicy::template MakeADramTileDistribution<CodegenPipelineProblem>();
-
-    auto kernel = Kernel{};
-    using SplitKBatchOffset = typename Kernel::SplitKBatchOffset;
-    SplitKBatchOffset splitk_batch_offset(args);
-    auto gemm_tensor_views_tuple = Kernel::template MakeGemmTensorViews<ck_tile::memory_operation_enum::set>(
-            args.a_ptr, 
-            args.b_shuffle_ptr,
-            args.c_ptr, 
-            kargs, splitk_batch_offset);*/
-
-
     printf("[FEIFEI] --- flatmm_calc() ---\n");
     printf("[FEIFEI] BlockPerCu = %d\n", static_cast<int>(kBlockPerCu));
     printf("[FEIFEI] BlockTile M = %d\n", static_cast<int>(M_Tile));

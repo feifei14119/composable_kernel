@@ -12,7 +12,7 @@ struct UniversalFlatmmPipelineAgBgCrPolicy
 {
     static constexpr auto I0 = number<0>{};
     static constexpr auto I1 = number<1>{};
-    static constexpr auto I2 = number<2>{};    
+    static constexpr auto I2 = number<2>{};
 
     // 3d + padding
     template <typename Problem>
@@ -168,8 +168,14 @@ struct UniversalFlatmmPipelineAgBgCrPolicy
                 if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
                 {
                     printf("[PIPELN] MakeADramTileDistribution():\n");
-                    printf("[PIPELN] KPerBlock = %d, MPerBlock = %d, APerTile = %d\n", KPerBlock, MPerBlock, KPerBlock * MPerBlock);
-                    printf("[PIPELN] BlockSize = %d, WaveSize = %d, VectorLoadSize = %d\n", BlockSize, get_warp_size(), Problem::VectorLoadSize);
+                    printf("[PIPELN] KPerBlock = %d, MPerBlock = %d, APerTile = %d\n",
+                           KPerBlock,
+                           MPerBlock,
+                           KPerBlock * MPerBlock);
+                    printf("[PIPELN] BlockSize = %d, WaveSize = %d, VectorLoadSize = %d\n",
+                           BlockSize,
+                           get_warp_size(),
+                           Problem::VectorLoadSize);
                     printf("[PIPELN] K0 = %d, K1 = %d\n", K0, K1);
                     printf("[PIPELN] M0 = %d, M1 = %d, M2 = %d\n", M0, M1, M2);
                 }
@@ -266,14 +272,20 @@ struct UniversalFlatmmPipelineAgBgCrPolicy
                               "Incorrect N0, N1, N2 configuration! "
                               "N0, N1, N2 must cover whole NPerBlock!");
 #ifdef FEIFEI_DEBUG
-            if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
-            {
-                printf("[PIPELN] MakeBDramTileDistribution():\n");
-                printf("[PIPELN] NPerBlock = %d, KPerBlock = %d, BperBlock = %d\n", NPerBlock, KPerBlock, NPerBlock * KPerBlock);
-                printf("[PIPELN] BlockSize = %d, warp_size = %d, VectorLoadSize = %d\n", BlockSize, get_warp_size(), Problem::VectorLoadSize);
-                printf("[PIPELN] K0 = %d, K1 = %d\n", K0, K1);
-                printf("[PIPELN] N0 = %d, N1 = %d, N2 = %d\n", N0, N1, N2);
-            }
+                if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
+                {
+                    printf("[PIPELN] MakeBDramTileDistribution():\n");
+                    printf("[PIPELN] NPerBlock = %d, KPerBlock = %d, BperBlock = %d\n",
+                           NPerBlock,
+                           KPerBlock,
+                           NPerBlock * KPerBlock);
+                    printf("[PIPELN] BlockSize = %d, warp_size = %d, VectorLoadSize = %d\n",
+                           BlockSize,
+                           get_warp_size(),
+                           Problem::VectorLoadSize);
+                    printf("[PIPELN] K0 = %d, K1 = %d\n", K0, K1);
+                    printf("[PIPELN] N0 = %d, N1 = %d, N2 = %d\n", N0, N1, N2);
+                }
 #endif
                 return make_static_tile_distribution(
                     tile_distribution_encoding<sequence<1>,
@@ -306,19 +318,16 @@ struct UniversalFlatmmPipelineAgBgCrPolicy
     CK_TILE_HOST_DEVICE static constexpr auto MakeBFlatDramTileDistribution()
     {
         using BDataType = remove_cvref_t<typename Problem::BDataType>;
-        using BLayout   = remove_cvref_t<typename Problem::BLayout>;
 
-        using TileShape             = typename Problem::BlockGemmShape; // ck_tile::TileFlatmmShape
+        using TileShape = typename Problem::BlockGemmShape; // ck_tile::TileFlatmmShape
 
         constexpr index_t BlockSize = Problem::kBlockSize;
         constexpr index_t WaveSize  = get_warp_size();
-        constexpr index_t WaveNum  = BlockSize / WaveSize;
+        constexpr index_t WaveNum   = BlockSize / WaveSize;
 
-        constexpr index_t KPerTile = TileShape::kK;
-        constexpr index_t NPerTile = TileShape::kN;
-
-        constexpr index_t KBPerLoad = Problem::VectorLoadSize / sizeof(BDataType);      // dwordx4 load B elem cnt
-        constexpr index_t KThdPerWave = WaveSize; // threads cnt in K dim
+        constexpr index_t KBPerLoad =
+            Problem::VectorLoadSize / sizeof(BDataType); // dwordx4 load B elem cnt
+        constexpr index_t KThdPerWave = WaveSize;        // threads cnt in K dim
         constexpr index_t KWavePerBlk = 1;
         constexpr index_t KRepeat     = 1;
 
@@ -327,35 +336,44 @@ struct UniversalFlatmmPipelineAgBgCrPolicy
         constexpr index_t NWavePerBlk = TileShape::BlockWarps::at(TileShape::idxN); // N_Warp
         constexpr index_t NRepeat     = 1;
 
-        constexpr index_t WaveRepeat  = WaveNum / TileShape::flatNPerWarp;
-
-        /*static_assert(KBPerLoad * KThdPerWave * KWavePerBlk * KRepeat * NBPerLoad * NThdPerWave *
-                          NWavePerBlk * NRepeat ==
-                      KPerTile * NPerTile);*/
+        constexpr index_t WaveRepeat = WaveNum / TileShape::flatNPerWarp;
 
 #ifdef FEIFEI_DEBUG
         if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
         {
             printf("[PIPELN] MakeBFlatDramTileDistribution():\n");
-            printf("[PIPELN] KPerTile = %d, NPerTile = %d, BPerTile = %d\n", KPerTile, NPerTile, KPerTile * NPerTile);
-            printf("[PIPELN] BlockSize = %d, WaveSize = %d, VectorLoadSize = %d\n", BlockSize, WaveSize, Problem::VectorLoadSize);
-            printf("[PIPELN] flatKPerWarp = %d, flatNPerWarp = %d\n", TileShape::flatKPerWarp, TileShape::flatNPerWarp);
-            printf("[PIPELN] KBPerLoad = %d, KThdPerWave = %d, KWavePerBlk = %d, KRepeat = %d\n", KBPerLoad, KThdPerWave, KWavePerBlk, KRepeat);
-            printf("[PIPELN] NBPerLoad = %d, NThdPerWave = %d, NWavePerBlk = %d, NRepeat = %d\n", NBPerLoad, NThdPerWave, NWavePerBlk, NRepeat);
+            printf("[PIPELN] BlockSize = %d, WaveSize = %d, VectorLoadSize = %d\n",
+                   BlockSize,
+                   WaveSize,
+                   Problem::VectorLoadSize);
+            printf("[PIPELN] flatKPerWarp = %d, flatNPerWarp = %d\n",
+                   TileShape::flatKPerWarp,
+                   TileShape::flatNPerWarp);
+            printf("[PIPELN] KBPerLoad = %d, KThdPerWave = %d, KWavePerBlk = %d, KRepeat = %d\n",
+                   KBPerLoad,
+                   KThdPerWave,
+                   KWavePerBlk,
+                   KRepeat);
+            printf("[PIPELN] NBPerLoad = %d, NThdPerWave = %d, NWavePerBlk = %d, NRepeat = %d\n",
+                   NBPerLoad,
+                   NThdPerWave,
+                   NWavePerBlk,
+                   NRepeat);
             printf("[PIPELN] WaveRepeat = %d\n", WaveRepeat);
         }
 #endif
         return make_static_tile_distribution(
-            tile_distribution_encoding<sequence<WaveRepeat>, // ?
-                                        tuple<sequence<NRepeat, NWavePerBlk, NThdPerWave, NBPerLoad>,  // second direction
-                                              sequence<KRepeat, KWavePerBlk, KThdPerWave, KBPerLoad>>, // first  direction
-                                        // wave in blk,     // thd in wave
-                                        // <M, K>           // <M, K>
-                                        tuple<sequence<0, 1, 2>, sequence<1, 2>>, // which direction
-                                        tuple<sequence<0, 1, 1>, sequence<2, 2>>, // which index
-                                        // <repeat, vec_load>
-                                        sequence<1, 1, 2, 2>,
-                                        sequence<0, 3, 0, 3>>{});
+            tile_distribution_encoding<
+                sequence<WaveRepeat>,                                          // ?
+                tuple<sequence<NRepeat, NWavePerBlk, NThdPerWave, NBPerLoad>,  // second direction
+                      sequence<KRepeat, KWavePerBlk, KThdPerWave, KBPerLoad>>, // first  direction
+                // wave in blk,     // thd in wave
+                // <M, K>           // <M, K>
+                tuple<sequence<0, 1, 2>, sequence<1, 2>>, // which direction
+                tuple<sequence<0, 1, 1>, sequence<2, 2>>, // which index
+                // <repeat, vec_load>
+                sequence<1, 1, 2, 2>,
+                sequence<0, 3, 0, 3>>{});
     }
 
     template <typename Problem>
@@ -456,16 +474,16 @@ struct UniversalFlatmmPipelineAgBgCrPolicy
     template <typename Problem>
     CK_TILE_HOST_DEVICE static constexpr auto GetBlockFlatmm()
     {
-        using AccDataType     = float;
-        using BlockWarps      = typename Problem::BlockGemmShape::BlockWarps;
-        using WarpTile        = typename Problem::BlockGemmShape::WarpTile;
-        using WarpGemm        = WarpGemmMfmaDispatcher<typename Problem::ADataType,
-                                                typename Problem::BDataType,
-                                                AccDataType,
-                                                WarpTile::at(I0),
-                                                WarpTile::at(I1),
-                                                WarpTile::at(I2),
-                                                Problem::TransposeC>;
+        using AccDataType = float;
+        using BlockWarps  = typename Problem::BlockGemmShape::BlockWarps;
+        using WarpTile    = typename Problem::BlockGemmShape::WarpTile;
+        using WarpGemm    = WarpGemmMfmaDispatcher<typename Problem::ADataType,
+                                                   typename Problem::BDataType,
+                                                   AccDataType,
+                                                   WarpTile::at(I0),
+                                                   WarpTile::at(I1),
+                                                   WarpTile::at(I2),
+                                                   Problem::TransposeC>;
 
         using BlockFlatmmPolicy =
             BlockFlatmmASmemBSmemCRegV1CustomPolicy<typename Problem::ADataType,
