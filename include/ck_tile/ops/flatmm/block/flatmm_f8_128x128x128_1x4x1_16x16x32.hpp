@@ -390,7 +390,7 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         int AldsWrAddr1 = AldsWrAddr + AldsWrOffset * 1;
         int AldsWrAddr2 = AldsWrAddr + AldsWrOffset * 2;
         int AldsWrAddr3 = AldsWrAddr + AldsWrOffset * 3;
-        int ldsAPingPangSize = ldsAWidth * tileM; // 132 * 128 = 16896 byte
+        int AldsPingPangSize = ldsAWidth * tileM - ldsAPad; // 132 * 128 = 16896 byte
 
         // lds read 128b A address
         int mfmaM = 16;
@@ -437,10 +437,14 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         int SAvmLdAddr = saRowIdx * M * sizeof(float) + saColIdx * sizeof(float);
         auto res_sa = make_wave_buffer_resource(reinterpret_cast<const float*>(a_scale_ptr), M * K/128 * sizeof(float));
         int SAvmLdOffset = mfmaM * sizeof(float);
+        int tSAvmTileOffset = M * sizeof(float);
+        int SAvmTileOffset = __builtin_amdgcn_readfirstlane(tSAvmTileOffset);
 
         // s load dword SB address
         auto res_sb = make_wave_buffer_resource(reinterpret_cast<const float*>(b_scale_ptr), (N/128) * (K/128) * sizeof(float));
         float sb_value = 0;
+        int tSBvmTileOffset = N / 128 * sizeof(float);
+        int SBvmTileOffset = __builtin_amdgcn_readfirstlane(tSBvmTileOffset);
 
         register float acc_0x asm("v64");
         register float acc_0y asm("v65");
@@ -628,8 +632,11 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
                 [n_a_lds_wr_offset]"n"(AldsWrOffset),
                 [n_a_lds_rd_offset_0]"n"(AldsRdOffsetInCol),
                 [n_a_lds_rd_offset_1]"n"(AldsRdOffsetInRow),
+                [n_a_lds_pingpang_sz]"n"(AldsPingPangSize),
                 [n_fb_vm_ld_offset]"n"(flatBvmLdOffset),
                 [n_sa_vm_ld_offset]"n"(SAvmLdOffset),
+                [s_tile_sa]"s"(SAvmTileOffset),
+                [s_tile_sb]"s"(SBvmTileOffset),
                 [v_a_vm_ld_addr0]"v"(static_cast<index_t>(AvmLdAddr0)),
                 [v_a_vm_ld_addr1]"v"(static_cast<index_t>(AvmLdAddr1)),
                 [v_a_vm_ld_addr2]"v"(static_cast<index_t>(AvmLdAddr2)),
@@ -781,10 +788,7 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr70); // A lds read 128b
         dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(-1);
         dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(-1);
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsWrOffset);
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdOffsetInCol);
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdOffsetInRow);
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(SAvmLdOffset);
+        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(tile_offset_a);
 #endif
 
         // c store to vmem
