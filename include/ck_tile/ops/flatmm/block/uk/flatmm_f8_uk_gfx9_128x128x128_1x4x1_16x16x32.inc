@@ -1,6 +1,12 @@
 // acc[64..127] : A
 // acc[0..15]   : B
+
 // v[64..127]   : Acc result, float4 c[0..16]
+// v[128..143]  : A vmem->vgpr->lds
+// v[160..170]  : scale
+// v[192..195]  : acc_in_tmp 1
+// v[196..197]  : acc_in_tmp 2
+//
 
 #define _UK_MFMA_ "v_mfma_f32_16x16x32_fp8_fp8"
 
@@ -25,8 +31,8 @@
     "s_mov_b32 s28,    %[s_base_sb_l] \n"
     "s_mov_b32 s29,    %[s_base_sb_h] \n"
     
-#if 1
-    // ===================================================================================
+#if 0
+#pragma region DEBUG_ADDRESS
     _FF_SYNC_
     // debug A vmem ------------------------------------------------------
     " buffer_load_dwordx4  [%[v_c_0x], %[v_c_0y], %[v_c_0z], %[v_c_0w]], %[v_a_vm_ld_addr0],  s[16:19], 0 offen          \n"
@@ -81,34 +87,9 @@
     " s_waitcnt lgkmcnt(0)                                                                  \n"
     " v_mov_b32            %[v_c_2x], %[s_sb]                                               \n"
     _FF_SYNC_
-    // debug mfma ========================================================================
-    _FF_SYNC_
-    // init to 0
-    "v_accvgpr_write    acc0,    0                                                          \n"
-    "v_accvgpr_write    acc1,    0                                                          \n"
-    "v_accvgpr_write    acc2,    0                                                          \n"
-    "v_accvgpr_write    acc3,    0                                                          \n"
-    "v_mov_b32          v128,    0                                                          \n"
-    "v_mov_b32          v129,    0                                                          \n"
-    "v_mov_b32          v130,    0                                                          \n"
-    "v_mov_b32          v131,    0                                                          \n"
-    _FF_SYNC_
-    _UK_MFMA_   " [%[v_c_0x],  %[v_c_0y],  %[v_c_0z],  %[v_c_0w]],  acc[0:1],  acc[2:3], v[128:131]                     \n"
-    _UK_MFMA_   " [%[v_c_1x],  %[v_c_1y],  %[v_c_1z],  %[v_c_1w]],  acc[0:1],  acc[2:3], v[128:131]                     \n"
-    _UK_MFMA_   " [%[v_c_2x],  %[v_c_2y],  %[v_c_2z],  %[v_c_2w]],  acc[0:1],  acc[2:3], v[128:131]                     \n"
-    _UK_MFMA_   " [%[v_c_3x],  %[v_c_3y],  %[v_c_3z],  %[v_c_3w]],  acc[0:1],  acc[2:3], v[128:131]                     \n"
-    _UK_MFMA_   " [%[v_c_4x],  %[v_c_4y],  %[v_c_4z],  %[v_c_4w]],  acc[0:1],  acc[2:3], v[128:131]                     \n"
-    _UK_MFMA_   " [%[v_c_5x],  %[v_c_5y],  %[v_c_5z],  %[v_c_5w]],  acc[0:1],  acc[2:3], v[128:131]                     \n"
-    _UK_MFMA_   " [%[v_c_6x],  %[v_c_6y],  %[v_c_6z],  %[v_c_6w]],  acc[0:1],  acc[2:3], v[128:131]                     \n"
-    _UK_MFMA_   " [%[v_c_7x],  %[v_c_7y],  %[v_c_7z],  %[v_c_7w]],  acc[0:1],  acc[2:3], v[128:131]                     \n"
-    _UK_MFMA_   " [%[v_c_8x],  %[v_c_8y],  %[v_c_8z],  %[v_c_8w]],  acc[0:1],  acc[2:3], v[128:131]                     \n"
-    _UK_MFMA_   " [%[v_c_9x],  %[v_c_9y],  %[v_c_9z],  %[v_c_9w]],  acc[0:1],  acc[2:3], v[128:131]                     \n"
-    _UK_MFMA_   " [%[v_c_10x], %[v_c_10y], %[v_c_10z], %[v_c_10w]], acc[0:1],  acc[2:3], v[128:131]                     \n"
-    _UK_MFMA_   " [%[v_c_11x], %[v_c_11y], %[v_c_11z], %[v_c_11w]], acc[0:1],  acc[2:3], v[128:131]                     \n"
-    _UK_MFMA_   " [%[v_c_12x], %[v_c_12y], %[v_c_12z], %[v_c_12w]], acc[0:1],  acc[2:3], v[128:131]                     \n"
-    _UK_MFMA_   " [%[v_c_13x], %[v_c_13y], %[v_c_13z], %[v_c_13w]], acc[0:1],  acc[2:3], v[128:131]                     \n"
-    _UK_MFMA_   " [%[v_c_14x], %[v_c_14y], %[v_c_14z], %[v_c_14w]], acc[0:1],  acc[2:3], v[128:131]                     \n"
-    _UK_MFMA_   " [%[v_c_15x], %[v_c_15y], %[v_c_15z], %[v_c_15w]], acc[0:1],  acc[2:3], v[128:131]                     \n"
+#pragma endregion
+
+#pragma region DEBUG_MFMA
     _FF_SYNC_
     // A: vmem->vgpr
     " buffer_load_dwordx4  v[128:131], %[v_a_vm_ld_addr0],  s[16:19], 0 offen               \n"
@@ -183,16 +164,16 @@
     // ... ...
     // Wave3, Warp0, thread0:  C[0]M  * [60~63]N
     // Wave3, Warp3, thread15: C[15]M * [60~63]N
-    _UK_MFMA_   " [%[v_c_0x], %[v_c_0y], %[v_c_0z], %[v_c_0w]], acc[0:1],   acc[64:65], [%[v_c_0x], %[v_c_0y], %[v_c_0z], %[v_c_0w]]                      \n"
-    _UK_MFMA_   " [%[v_c_0x], %[v_c_0y], %[v_c_0z], %[v_c_0w]], acc[2:3],   acc[66:67], [%[v_c_0x], %[v_c_0y], %[v_c_0z], %[v_c_0w]]                      \n"
-    _UK_MFMA_   " [%[v_c_0x], %[v_c_0y], %[v_c_0z], %[v_c_0w]], acc[4:5],   acc[68:69], [%[v_c_0x], %[v_c_0y], %[v_c_0z], %[v_c_0w]]                      \n"
-    _UK_MFMA_   " [%[v_c_0x], %[v_c_0y], %[v_c_0z], %[v_c_0w]], acc[6:7],   acc[70:71], [%[v_c_0x], %[v_c_0y], %[v_c_0z], %[v_c_0w]]                      \n"
+    _UK_MFMA_   " v[192:195], acc[0:1],   acc[64:65], 0                 \n"
+    _UK_MFMA_   " v[192:195], acc[2:3],   acc[66:67], v[192:195]        \n"
+    _UK_MFMA_   " v[192:195], acc[4:5],   acc[68:69], v[192:195]        \n"
+    _UK_MFMA_   " v[192:195], acc[6:7],   acc[70:71], v[192:195]        \n"
     // C = C * scale c
-    " s_nop 16 \n"
-    " v_mul_f32 %[v_c_0x], %[v_c_0x], %[v_sa_0] \n"
-    " v_mul_f32 %[v_c_0y], %[v_c_0y], %[v_sa_0] \n"
-    " v_mul_f32 %[v_c_0z], %[v_c_0z], %[v_sa_0] \n"
-    " v_mul_f32 %[v_c_0w], %[v_c_0w], %[v_sa_0] \n"
+    " s_nop 16                                                          \n"
+    " v_mul_f32 %[v_c_0x], v192, %[v_sa_0]                              \n"
+    " v_mul_f32 %[v_c_0y], v193, %[v_sa_0]                              \n"
+    " v_mul_f32 %[v_c_0z], v194, %[v_sa_0]                              \n"
+    " v_mul_f32 %[v_c_0w], v195, %[v_sa_0]                              \n"
     // C: [0~15]M   * [64~127]N  ---------------------------------------------------------
     // B( [64~127]N * [0~127]K ) * A( [0~15]M * [0~127]K )
     // Wave0, Warp0, thread0:  C[0]M  * [64~67]N
@@ -206,16 +187,16 @@
     // ... ...
     // Wave3, Warp0, thread0:  C[0]M  * [124~127]N
     // Wave3, Warp3, thread15: C[15]M * [124~127]N
-    _UK_MFMA_   " [%[v_c_1x], %[v_c_1y], %[v_c_1z], %[v_c_1w]], acc[8:9],   acc[64:65], [%[v_c_1x], %[v_c_1y], %[v_c_1z], %[v_c_1w]]                      \n"
-    _UK_MFMA_   " [%[v_c_1x], %[v_c_1y], %[v_c_1z], %[v_c_1w]], acc[10:11], acc[66:67], [%[v_c_1x], %[v_c_1y], %[v_c_1z], %[v_c_1w]]                      \n"
-    _UK_MFMA_   " [%[v_c_1x], %[v_c_1y], %[v_c_1z], %[v_c_1w]], acc[12:13], acc[68:69], [%[v_c_1x], %[v_c_1y], %[v_c_1z], %[v_c_1w]]                      \n"
-    _UK_MFMA_   " [%[v_c_1x], %[v_c_1y], %[v_c_1z], %[v_c_1w]], acc[14:15], acc[70:71], [%[v_c_1x], %[v_c_1y], %[v_c_1z], %[v_c_1w]]                      \n"
+    _UK_MFMA_   " v[192:195], acc[8:9],   acc[64:65], 0                 \n"
+    _UK_MFMA_   " v[192:195], acc[10:11], acc[66:67], v[192:195]        \n"
+    _UK_MFMA_   " v[192:195], acc[12:13], acc[68:69], v[192:195]        \n"
+    _UK_MFMA_   " v[192:195], acc[14:15], acc[70:71], v[192:195]        \n"
     // C = C * scale c
-    " s_nop 16 \n"
-    " v_mul_f32 %[v_c_1x], %[v_c_1x], %[v_sa_0] \n"
-    " v_mul_f32 %[v_c_1y], %[v_c_1y], %[v_sa_0] \n"
-    " v_mul_f32 %[v_c_1z], %[v_c_1z], %[v_sa_0] \n"
-    " v_mul_f32 %[v_c_1w], %[v_c_1w], %[v_sa_0] \n"
+    " s_nop 16                                                          \n"
+    " v_mul_f32 %[v_c_1x], v192, %[v_sa_0]                              \n"
+    " v_mul_f32 %[v_c_1y], v193, %[v_sa_0]                              \n"
+    " v_mul_f32 %[v_c_1z], v194, %[v_sa_0]                              \n"
+    " v_mul_f32 %[v_c_1w], v195, %[v_sa_0]                              \n"
     // C: [16~31]M * [0~63]N -------------------------------------------------------------
     // B( [0~63]N * [0~127]K ) * A( [16~31]M * [0~127]K )
     // Wave0, Warp0, thread0:  C[16]M * [0~3]N
@@ -229,16 +210,16 @@
     // ... ...
     // Wave3, Warp0, thread0:  C[16]M * [60~63]N
     // Wave3, Warp3, thread15: C[31]M * [60~63]N
-    _UK_MFMA_   " [%[v_c_2x], %[v_c_2y], %[v_c_2z], %[v_c_2w]], acc[0:1],   acc[72:73], [%[v_c_2x], %[v_c_2y], %[v_c_2z], %[v_c_2w]]                      \n"
-    _UK_MFMA_   " [%[v_c_2x], %[v_c_2y], %[v_c_2z], %[v_c_2w]], acc[2:3],   acc[74:75], [%[v_c_2x], %[v_c_2y], %[v_c_2z], %[v_c_2w]]                      \n"
-    _UK_MFMA_   " [%[v_c_2x], %[v_c_2y], %[v_c_2z], %[v_c_2w]], acc[4:5],   acc[76:77], [%[v_c_2x], %[v_c_2y], %[v_c_2z], %[v_c_2w]]                      \n"
-    _UK_MFMA_   " [%[v_c_2x], %[v_c_2y], %[v_c_2z], %[v_c_2w]], acc[6:7],   acc[78:79], [%[v_c_2x], %[v_c_2y], %[v_c_2z], %[v_c_2w]]                      \n"
+    _UK_MFMA_   " v[192:195], acc[0:1],   acc[72:73], 0                 \n"
+    _UK_MFMA_   " v[192:195], acc[2:3],   acc[74:75], v[192:195]        \n"
+    _UK_MFMA_   " v[192:195], acc[4:5],   acc[76:77], v[192:195]        \n"
+    _UK_MFMA_   " v[192:195], acc[6:7],   acc[78:79], v[192:195]        \n"
     // C = C * scale c
-    " s_nop 16 \n"
-    " v_mul_f32 %[v_c_2x], %[v_c_2x], %[v_sa_1] \n"
-    " v_mul_f32 %[v_c_2y], %[v_c_2y], %[v_sa_1] \n"
-    " v_mul_f32 %[v_c_2z], %[v_c_2z], %[v_sa_1] \n"
-    " v_mul_f32 %[v_c_2w], %[v_c_2w], %[v_sa_1] \n"
+    " s_nop 16                                                          \n"
+    " v_mul_f32 %[v_c_2x], v192, %[v_sa_1]                              \n"
+    " v_mul_f32 %[v_c_2y], v193, %[v_sa_1]                              \n"
+    " v_mul_f32 %[v_c_2z], v194, %[v_sa_1]                              \n"
+    " v_mul_f32 %[v_c_2w], v195, %[v_sa_1]                              \n"
     // C: [32~47]M   * [0~63]N -----------------------------------------------------------
     // C: [32~47]M   * [64~127]N ---------------------------------------------------------
     // C: [48~63]M   * [0~63]N -----------------------------------------------------------
@@ -251,18 +232,19 @@
     // C: [96~111]M  * [64~127]N ---------------------------------------------------------
     // C: [112~127]M * [0~63]N -----------------------------------------------------------
     // C: [112~127]M * [64~127]N ---------------------------------------------------------
-    _UK_MFMA_   " [%[v_c_15x], %[v_c_15y], %[v_c_15z], %[v_c_15w]], acc[8:9],   acc[120:121], [%[v_c_15x], %[v_c_15y], %[v_c_15z], %[v_c_15w]]                    \n"
-    _UK_MFMA_   " [%[v_c_15x], %[v_c_15y], %[v_c_15z], %[v_c_15w]], acc[10:11], acc[122:123], [%[v_c_15x], %[v_c_15y], %[v_c_15z], %[v_c_15w]]                    \n"
-    _UK_MFMA_   " [%[v_c_15x], %[v_c_15y], %[v_c_15z], %[v_c_15w]], acc[12:13], acc[124:125], [%[v_c_15x], %[v_c_15y], %[v_c_15z], %[v_c_15w]]                    \n"
-    _UK_MFMA_   " [%[v_c_15x], %[v_c_15y], %[v_c_15z], %[v_c_15w]], acc[14:15], acc[126:127], [%[v_c_15x], %[v_c_15y], %[v_c_15z], %[v_c_15w]]                    \n"
+    _UK_MFMA_   " v[192:195], acc[8:9],   acc[120:121], 0               \n"
+    _UK_MFMA_   " v[192:195], acc[10:11], acc[122:123], v[192:195]      \n"
+    _UK_MFMA_   " v[192:195], acc[12:13], acc[124:125], v[192:195]      \n"
+    _UK_MFMA_   " v[192:195], acc[14:15], acc[126:127], v[192:195]      \n"
     // C = C * scale c
-    " s_nop 16 \n"
-    " v_mul_f32 %[v_c_15x], %[v_c_15x], %[v_sa_7] \n"
-    " v_mul_f32 %[v_c_15y], %[v_c_15y], %[v_sa_7] \n"
-    " v_mul_f32 %[v_c_15z], %[v_c_15z], %[v_sa_7] \n"
-    " v_mul_f32 %[v_c_15w], %[v_c_15w], %[v_sa_7] \n"
-    // ===================================================================================
+    " s_nop 16                                                          \n"
+    " v_mul_f32 %[v_c_15x], v192, %[v_sa_7]                             \n"
+    " v_mul_f32 %[v_c_15y], v193, %[v_sa_7]                             \n"
+    " v_mul_f32 %[v_c_15z], v194, %[v_sa_7]                             \n"
+    " v_mul_f32 %[v_c_15w], v195, %[v_sa_7]                             \n"
     _FF_SYNC_
+#pragma endregion
+
 #else
 
 #pragma region PREFETCH_A
@@ -314,7 +296,8 @@
     " s_waitcnt vmcnt(0)                                                                    \n"
 #pragma endregion
 
-#pragma region PREFETCH_SCALE_A
+#pragma region PREFETCH_SCALE
+    // scale a
     " buffer_load_dword    %[v_sa_0], %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 0           \n" // [0~15]M
     " buffer_load_dword    %[v_sa_1], %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 1           \n" // [16~31]M
     " buffer_load_dword    %[v_sa_2], %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 2           \n" // [32~47]M
@@ -324,12 +307,187 @@
     " buffer_load_dword    %[v_sa_6], %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 6           \n" // [96~111]M
     " buffer_load_dword    %[v_sa_7], %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 7           \n" // [112~127]M
     " s_waitcnt vmcnt(0)                                                                    \n"
+
+    // scale b
+    " s_load_dword         %[s_sb], s[28:29],  0                                            \n"
+    " s_waitcnt lgkmcnt(0)                                                                  \n"
+    " v_mov_b32            %[v_sb], %[s_sb]                                                 \n"
+
+    // scale c = scale a * scale b
+    " v_mul_f32  %[v_sa_0], %[v_sa_0], %[v_sb] \n"
+    " v_mul_f32  %[v_sa_1], %[v_sa_1], %[v_sb] \n"
+    " v_mul_f32  %[v_sa_2], %[v_sa_2], %[v_sb] \n"
+    " v_mul_f32  %[v_sa_3], %[v_sa_3], %[v_sb] \n"
+    " v_mul_f32  %[v_sa_4], %[v_sa_4], %[v_sb] \n"
+    " v_mul_f32  %[v_sa_5], %[v_sa_5], %[v_sb] \n"
+    " v_mul_f32  %[v_sa_6], %[v_sa_6], %[v_sb] \n"
+    " v_mul_f32  %[v_sa_7], %[v_sa_7], %[v_sb] \n"
 #pragma endregion
 
-#pragma region PREFETCH_SCALE_B
-#pragma endregion
+"L_start%=:                                                                                 \n"
 
-"L_start%=:                                                             \n"
+#pragma region LOOP_1
+    // C: [0~15]M * [0~63]N --------------------------------------------------------------
+    _UK_MFMA_   " v[192:195], acc[0:1],   acc[64:65], 0                 \n"
+    _UK_MFMA_   " v[192:195], acc[2:3],   acc[66:67], v[192:195]        \n"
+    _UK_MFMA_   " v[192:195], acc[4:5],   acc[68:69], v[192:195]        \n"
+    _UK_MFMA_   " v[192:195], acc[6:7],   acc[70:71], v[192:195]        \n"
+    " s_nop 16                                                          \n"
+    " v_mul_f32 %[v_c_0x],  v192, %[v_sa_0]                             \n"
+    " v_mul_f32 %[v_c_0y],  v193, %[v_sa_0]                             \n"
+    " v_mul_f32 %[v_c_0z],  v194, %[v_sa_0]                             \n"
+    " v_mul_f32 %[v_c_0w],  v195, %[v_sa_0]                             \n"
+    // C: [0~15]M   * [64~127]N  ---------------------------------------------------------
+    _UK_MFMA_   " v[192:195], acc[8:9],   acc[64:65], 0                 \n"
+    _UK_MFMA_   " v[192:195], acc[10:11], acc[66:67], v[192:195]        \n"
+    _UK_MFMA_   " v[192:195], acc[12:13], acc[68:69], v[192:195]        \n"
+    _UK_MFMA_   " v[192:195], acc[14:15], acc[70:71], v[192:195]        \n"
+    " s_nop 16                                                          \n"
+    " v_mul_f32 %[v_c_1x],  v192, %[v_sa_0]                             \n"
+    " v_mul_f32 %[v_c_1y],  v193, %[v_sa_0]                             \n"
+    " v_mul_f32 %[v_c_1z],  v194, %[v_sa_0]                             \n"
+    " v_mul_f32 %[v_c_1w],  v195, %[v_sa_0]                             \n"
+    // C: [16~31]M * [0~63]N -------------------------------------------------------------
+    _UK_MFMA_   " v[192:195], acc[0:1],   acc[72:73], 0                 \n"
+    _UK_MFMA_   " v[192:195], acc[2:3],   acc[74:75], v[192:195]        \n"
+    _UK_MFMA_   " v[192:195], acc[4:5],   acc[76:77], v[192:195]        \n"
+    _UK_MFMA_   " v[192:195], acc[6:7],   acc[78:79], v[192:195]        \n"
+    " s_nop 16                                                          \n"
+    " v_mul_f32 %[v_c_2x],  v192, %[v_sa_1]                             \n"
+    " v_mul_f32 %[v_c_2y],  v193, %[v_sa_1]                             \n"
+    " v_mul_f32 %[v_c_2z],  v194, %[v_sa_1]                             \n"
+    " v_mul_f32 %[v_c_2w],  v195, %[v_sa_1]                             \n"
+    // C: [16~31]M   * [64~127]N ---------------------------------------------------------
+    _UK_MFMA_   " v[192:195], acc[8:9],   acc[72:73], 0                 \n"
+    _UK_MFMA_   " v[192:195], acc[10:11], acc[74:75], v[192:195]        \n"
+    _UK_MFMA_   " v[192:195], acc[12:13], acc[76:77], v[192:195]        \n"
+    _UK_MFMA_   " v[192:195], acc[14:15], acc[78:79], v[192:195]        \n"
+    " s_nop 16                                                          \n"
+    " v_mul_f32 %[v_c_3x],  v192, %[v_sa_1]                             \n"
+    " v_mul_f32 %[v_c_3y],  v193, %[v_sa_1]                             \n"
+    " v_mul_f32 %[v_c_3z],  v194, %[v_sa_1]                             \n"
+    " v_mul_f32 %[v_c_3w],  v195, %[v_sa_1]                             \n"
+    // C: [32~47]M   * [0~63]N -----------------------------------------------------------
+    _UK_MFMA_   " v[192:195], acc[0:1],   acc[80:81], 0                 \n"
+    _UK_MFMA_   " v[192:195], acc[2:3],   acc[82:83], v[192:195]        \n"
+    _UK_MFMA_   " v[192:195], acc[4:5],   acc[84:85], v[192:195]        \n"
+    _UK_MFMA_   " v[192:195], acc[6:7],   acc[86:87], v[192:195]        \n"
+    " s_nop 16                                                          \n"
+    " v_mul_f32 %[v_c_4x],  v192,%[v_sa_2]                              \n"
+    " v_mul_f32 %[v_c_4y],  v193,%[v_sa_2]                              \n"
+    " v_mul_f32 %[v_c_4z],  v194,%[v_sa_2]                              \n"
+    " v_mul_f32 %[v_c_4w],  v195,%[v_sa_2]                              \n"
+    // C: [32~47]M   * [64~127]N ---------------------------------------------------------
+    _UK_MFMA_   " v[192:195], acc[8:9],   acc[80:81], 0                 \n"
+    _UK_MFMA_   " v[192:195], acc[10:11], acc[82:83], v[192:195]        \n"
+    _UK_MFMA_   " v[192:195], acc[12:13], acc[84:85], v[192:195]        \n"
+    _UK_MFMA_   " v[192:195], acc[14:15], acc[86:87], v[192:195]        \n"
+    " s_nop 16                                                          \n"
+    " v_mul_f32 %[v_c_5x],  v192, %[v_sa_2]                             \n"
+    " v_mul_f32 %[v_c_5y],  v193, %[v_sa_2]                             \n"
+    " v_mul_f32 %[v_c_5z],  v194, %[v_sa_2]                             \n"
+    " v_mul_f32 %[v_c_5w],  v195, %[v_sa_2]                             \n"
+    // C: [48~63]M   * [0~63]N -----------------------------------------------------------
+    _UK_MFMA_   " v[192:195], acc[0:1],   acc[88:89], 0                 \n"
+    _UK_MFMA_   " v[192:195], acc[2:3],   acc[90:91], v[192:195]        \n"
+    _UK_MFMA_   " v[192:195], acc[4:5],   acc[92:93], v[192:195]        \n"
+    _UK_MFMA_   " v[192:195], acc[6:7],   acc[94:95], v[192:195]        \n"
+    " s_nop 16                                                          \n"
+    " v_mul_f32 %[v_c_6x],  v192, %[v_sa_3]                             \n"
+    " v_mul_f32 %[v_c_6y],  v193, %[v_sa_3]                             \n"
+    " v_mul_f32 %[v_c_6z],  v194, %[v_sa_3]                             \n"
+    " v_mul_f32 %[v_c_6w],  v195, %[v_sa_3]                             \n"
+    // C: [48~63]M   * [64~127]N ---------------------------------------------------------
+    _UK_MFMA_   " v[192:195], acc[8:9],   acc[88:89], 0                 \n"
+    _UK_MFMA_   " v[192:195], acc[10:11], acc[90:91], v[192:195]        \n"
+    _UK_MFMA_   " v[192:195], acc[12:13], acc[92:93], v[192:195]        \n"
+    _UK_MFMA_   " v[192:195], acc[14:15], acc[94:95], v[192:195]        \n"
+    " s_nop 16                                                          \n"
+    " v_mul_f32 %[v_c_7x],  v192, %[v_sa_3]                             \n"
+    " v_mul_f32 %[v_c_7y],  v193, %[v_sa_3]                             \n"
+    " v_mul_f32 %[v_c_7z],  v194, %[v_sa_3]                             \n"
+    " v_mul_f32 %[v_c_7w],  v195, %[v_sa_3]                             \n"
+    // C: [64~79]M   * [0~63]N -----------------------------------------------------------
+    _UK_MFMA_   " v[192:195], acc[0:1],   acc[96:97],   0               \n"
+    _UK_MFMA_   " v[192:195], acc[2:3],   acc[98:99],   v[192:195]      \n"
+    _UK_MFMA_   " v[192:195], acc[4:5],   acc[100:101], v[192:195]      \n"
+    _UK_MFMA_   " v[192:195], acc[6:7],   acc[102:103], v[192:195]      \n"
+    " s_nop 16                                                          \n"
+    " v_mul_f32 %[v_c_8x],  v192, %[v_sa_4]                             \n"
+    " v_mul_f32 %[v_c_8y],  v193, %[v_sa_4]                             \n"
+    " v_mul_f32 %[v_c_8z],  v194, %[v_sa_4]                             \n"
+    " v_mul_f32 %[v_c_8w],  v195, %[v_sa_4]                             \n"
+    // C: [64~79]M   * [64~127]N ---------------------------------------------------------
+    _UK_MFMA_   " v[192:195], acc[8:9],   acc[96:97],   0               \n"
+    _UK_MFMA_   " v[192:195], acc[10:11], acc[98:99],   v[192:195]      \n"
+    _UK_MFMA_   " v[192:195], acc[12:13], acc[100:101], v[192:195]      \n"
+    _UK_MFMA_   " v[192:195], acc[14:15], acc[102:103], v[192:195]      \n"
+    " s_nop 16                                                          \n"
+    " v_mul_f32 %[v_c_9x],  v192, %[v_sa_4]                             \n"
+    " v_mul_f32 %[v_c_9y],  v193, %[v_sa_4]                             \n"
+    " v_mul_f32 %[v_c_9z],  v194, %[v_sa_4]                             \n"
+    " v_mul_f32 %[v_c_9w],  v195, %[v_sa_4]                             \n"
+    // C: [80~95]M   * [0~63]N -----------------------------------------------------------
+    _UK_MFMA_   " v[192:195], acc[0:1],   acc[104:105], 0               \n"
+    _UK_MFMA_   " v[192:195], acc[2:3],   acc[106:107], v[192:195]      \n"
+    _UK_MFMA_   " v[192:195], acc[4:5],   acc[108:109], v[192:195]      \n"
+    _UK_MFMA_   " v[192:195], acc[6:7],   acc[110:111], v[192:195]      \n"
+    " s_nop 16                                                          \n"
+    " v_mul_f32 %[v_c_10x], v192, %[v_sa_5]                             \n"
+    " v_mul_f32 %[v_c_10y], v193, %[v_sa_5]                             \n"
+    " v_mul_f32 %[v_c_10z], v194, %[v_sa_5]                             \n"
+    " v_mul_f32 %[v_c_10w], v195, %[v_sa_5]                             \n"
+    // C: [80~95]M   * [64~127]N ---------------------------------------------------------
+    _UK_MFMA_   " v[192:195], acc[8:9],   acc[104:105], 0               \n"
+    _UK_MFMA_   " v[192:195], acc[10:11], acc[106:107], v[192:195]      \n"
+    _UK_MFMA_   " v[192:195], acc[12:13], acc[108:109], v[192:195]      \n"
+    _UK_MFMA_   " v[192:195], acc[14:15], acc[110:111], v[192:195]      \n"
+    " s_nop 16                                                          \n"
+    " v_mul_f32 %[v_c_11x], v192, %[v_sa_5]                             \n"
+    " v_mul_f32 %[v_c_11y], v193, %[v_sa_5]                             \n"
+    " v_mul_f32 %[v_c_11z], v194, %[v_sa_5]                             \n"
+    " v_mul_f32 %[v_c_11w], v195, %[v_sa_5]                             \n"
+    // C: [96~111]M  * [0~63]N -----------------------------------------------------------
+    _UK_MFMA_   " v[192:195], acc[0:1],   acc[112:113], 0               \n"
+    _UK_MFMA_   " v[192:195], acc[2:3],   acc[114:115], v[192:195]      \n"
+    _UK_MFMA_   " v[192:195], acc[4:5],   acc[116:117], v[192:195]      \n"
+    _UK_MFMA_   " v[192:195], acc[6:7],   acc[118:119], v[192:195]      \n"
+    " s_nop 16                                                          \n"
+    " v_mul_f32 %[v_c_12x], v192, %[v_sa_6]                             \n"
+    " v_mul_f32 %[v_c_12y], v193, %[v_sa_6]                             \n"
+    " v_mul_f32 %[v_c_12z], v194, %[v_sa_6]                             \n"
+    " v_mul_f32 %[v_c_12w], v195, %[v_sa_6]                             \n"
+    // C: [96~111]M  * [64~127]N ---------------------------------------------------------
+    _UK_MFMA_   " v[192:195], acc[8:9],   acc[112:113], 0               \n"
+    _UK_MFMA_   " v[192:195], acc[10:11], acc[114:115], v[192:195]      \n"
+    _UK_MFMA_   " v[192:195], acc[12:13], acc[116:117], v[192:195]      \n"
+    _UK_MFMA_   " v[192:195], acc[14:15], acc[118:119], v[192:195]      \n"
+    " s_nop 16                                                          \n"
+    " v_mul_f32 %[v_c_13x], v192, %[v_sa_6]                             \n"
+    " v_mul_f32 %[v_c_13y], v193, %[v_sa_6]                             \n"
+    " v_mul_f32 %[v_c_13z], v194, %[v_sa_6]                             \n"
+    " v_mul_f32 %[v_c_13w], v195, %[v_sa_6]                             \n"
+    // C: [112~127]M * [0~63]N -----------------------------------------------------------
+    _UK_MFMA_   " v[192:195], acc[0:1],   acc[120:121], 0               \n"
+    _UK_MFMA_   " v[192:195], acc[2:3],   acc[122:123], v[192:195]      \n"
+    _UK_MFMA_   " v[192:195], acc[4:5],   acc[124:125], v[192:195]      \n"
+    _UK_MFMA_   " v[192:195], acc[6:7],   acc[126:127], v[192:195]      \n"
+    " s_nop 16                                                          \n"
+    " v_mul_f32 %[v_c_14x], v192, %[v_sa_7]                             \n"
+    " v_mul_f32 %[v_c_14y], v193, %[v_sa_7]                             \n"
+    " v_mul_f32 %[v_c_14z], v194, %[v_sa_7]                             \n"
+    " v_mul_f32 %[v_c_14w], v195, %[v_sa_7]                             \n"
+    // C: [112~127]M * [64~127]N ---------------------------------------------------------
+    _UK_MFMA_   " v[192:195], acc[8:9],   acc[120:121], 0               \n"
+    _UK_MFMA_   " v[192:195], acc[10:11], acc[122:123], v[192:195]      \n"
+    _UK_MFMA_   " v[192:195], acc[12:13], acc[124:125], v[192:195]      \n"
+    _UK_MFMA_   " v[192:195], acc[14:15], acc[126:127], v[192:195]      \n"
+    " s_nop 16                                                          \n"
+    " v_mul_f32 %[v_c_15x], v192, %[v_sa_7]                             \n"
+    " v_mul_f32 %[v_c_15y], v193, %[v_sa_7]                             \n"
+    " v_mul_f32 %[v_c_15z], v194, %[v_sa_7]                             \n"
+    " v_mul_f32 %[v_c_15w], v195, %[v_sa_7]                             \n"
+#pragma endregion
 
 "L_end%=:                                                               \n"
     "  s_nop 2                                                          \n"
