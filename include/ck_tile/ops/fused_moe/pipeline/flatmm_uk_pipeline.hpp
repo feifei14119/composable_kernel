@@ -343,13 +343,21 @@ struct GemmPipeline_FlatmmUk
         // ----------------------------------------------------------------------------
         // core
         auto uk = Policy::template GetUK<Problem>();
+        uk.M = kargs.num_tokens;
+        uk.N = kargs.intermediate_size;
+        uk.K = kargs.hidden_size;
+        ODataType* d_b16_buf = static_cast<ODataType*>(kargs.d_f16_ptr);
+        ODataType* d_fp16_ptr = d_b16_buf +
+                            blockIdx.y * BlockShape::Block_M * kargs.intermediate_size +
+                            blockIdx.x * BlockShape::Block_N;
         auto acc =
             uk(a_res,
                a_coords,
                b_res,
                b_coords,
-               a_scale,
+               sa_ptr,
                sb_ptr,
+               d_b16_buf,
                sbIdx0,
                sbIdxStep,
                smem,
@@ -362,7 +370,7 @@ struct GemmPipeline_FlatmmUk
                dbg_fp32);
 
         // ----------------------------------------------------------------------------
-#if 1        
+#if 0        
         {
             int tid           = threadIdx.x;
             ODataType srdfp16    = 0.f;

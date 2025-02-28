@@ -51,27 +51,61 @@ CK_TILE_HOST void my_reference_gemm(const ck_tile::HostTensor<ADataType>& a_m_k,
     const std::size_t K = a_m_k.get_length(1);
     printf("M = %zu, N = %zu, K = %zu\n", M, N, K);
 
+#if 0
     auto f_mn = [&](auto m, auto n) {
         AccDataType v_acc = 0;
 
-        for(std::size_t k = 0; k < K; ++k)
+        for(std::size_t sk = 0; sk < K / 128; ++sk)
         {
-            ADataType v_a = a_element_op(a_m_k(m, k));
-            BDataType v_b = b_element_op(b_n_k(n, k));
+            AccDataType v_acc_in = 0;
+            for(std::size_t ik = 0; ik < 128; ++ik)
+            {
+                size_t k = sk * 128 + ik;
+                ADataType v_a = a_element_op(a_m_k(m, k));
+                BDataType v_b = b_element_op(b_n_k(n, k));
+                v_acc_in +=
+                    ck_tile::type_convert<AccDataType>(v_a) * ck_tile::type_convert<AccDataType>(v_b);
+            }
+            float sa = sa_m_1(sk, m);
+            float sb = sb_1_n(sk, n/128);
 
-            v_acc +=
-                ck_tile::type_convert<AccDataType>(v_a) * ck_tile::type_convert<AccDataType>(v_b);
+            v_acc += v_acc_in * sa * sb;
         }
 
-        AccDataType sa = ck_tile::type_convert<AccDataType>(sa_m_1(m, 0));
-        v_acc = v_acc * sa;
-        AccDataType sb = ck_tile::type_convert<AccDataType>(sb_1_n(0, n));
-        v_acc = v_acc * sb;
         d_m_n(m, n) = ck_tile::type_convert<DDataType>(acc_element_op(v_acc));
         d_f16(m, n) = ck_tile::type_convert<ODataType>(d_m_n(m, n));
     };
 
     ck_tile::make_ParallelTensorFunctor(f_mn, M, N)(std::thread::hardware_concurrency());
+
+#else
+    for(size_t m = 0; m < M; m++)
+    {
+        for(size_t n = 0; n < N; n++)
+        {
+            float acc = 0;
+
+            for(size_t sk = 0; sk < K / 128; sk++)
+            {
+                float acc_in = 0;
+                float sa = sa_m_1(sk, m);
+                float sb = sb_1_n(sk, n/128);
+                for(size_t ik = 0; ik < 128; ik++)
+                {
+                    size_t k = sk * 128 + ik;
+                    ADataType a = a_element_op(a_m_k(m, k));
+                    BDataType b = b_element_op(b_n_k(n, k));
+                    acc_in += ck_tile::type_convert<float>(a) * ck_tile::type_convert<float>(b);
+                }
+                acc_in = acc_in * sa * sb;
+                acc = acc + acc_in;
+            }
+
+            d_m_n(m, n) = ck_tile::type_convert<float>(acc_element_op(acc));
+            d_f16(m, n) = ck_tile::type_convert<ODataType>(d_m_n(m, n));
+        }
+    }
+#endif    
 }
 
 // mfma_type, 0:32x32, 1:16x16
@@ -112,9 +146,9 @@ auto shuffle_weight(const ck_tile::HostTensor<T>& t, std::string mfma_dtype, int
 auto create_args(int argc, char* argv[])
 {
     ck_tile::ArgParser arg_parser;
-    arg_parser.insert("m", "32", "num of m")    // 64,  32,
-        .insert("n", "7168", "num of n")        // 128, 1280, 8192, 7168, 8192
-        .insert("k", "8192", "num of k")        // 512, 8192, 1024, 8192, 3584
+    arg_parser.insert("m", "128", "num of m")    // 64,  32,
+        .insert("n", "128", "num of n")        // 128, 1280, 8192, 7168, 8192
+        .insert("k", "128", "num of k")        // 512, 8192, 1024, 8192, 3584
         .insert("t", "64", "num input tokens")
         .insert("e", "8", "num of experts")
         .insert("tk", "1", "topk")
@@ -201,13 +235,13 @@ bool run(const ck_tile::ArgParser& arg_parser)
     ck_tile::HostTensor<CDataType> c_host({M, N});
     ck_tile::HostTensor<DDataType> d_host({M, N});
     ck_tile::HostTensor<ODataType> d_f16_host({M, N});
-    ck_tile::HostTensor<AScaleDataType> sa_host({M, 1});
-    ck_tile::HostTensor<GScaleDataType> sb_host({1, N});
+    ck_tile::HostTensor<AScaleDataType> sa_host({K/128, M});
+    ck_tile::HostTensor<GScaleDataType> sb_host({K/128, N/128});
 
-    ck_tile::HostTensor<int> dbg_int({M * N, 128});
-    ck_tile::HostTensor<float> dbg_fp32({M * N, 128});
-    ck_tile::HostTensor<ck_tile::fp8_t> dbg_fp8({M * N, 128});
-    ck_tile::HostTensor<ODataType> dbg_f16({M * N, 128});
+    ck_tile::HostTensor<int> dbg_int({M * N, DEBUG_CNT});
+    ck_tile::HostTensor<float> dbg_fp32({M * N, DEBUG_CNT});
+    ck_tile::HostTensor<ck_tile::fp8_t> dbg_fp8({M * N, DEBUG_CNT});
+    ck_tile::HostTensor<ODataType> dbg_f16({M * N, DEBUG_CNT});
 
     if(init == 0)
     {
@@ -369,192 +403,13 @@ bool run(const ck_tile::ArgParser& arg_parser)
         std::cout << "The CPU veification result is:" << (pass ? "correct" : "fail") << std::endl;
     }
 
-#if 0
+#if 1
     int GridDimX  = 1;
     int GridDimY  = 1;
     int BlockDimX = 64;
     int BlockDimY = 4;
+    int DbgCnt    = DEBUG_CNT;
     int BlockSize = BlockDimX * BlockDimY;
-    // dbg_int ---> kernel
-    {
-        auto dbg_int_dev = dbg_int_buf.ToHost<int>();
-        std::ofstream file("ff_dbg_int_kernel.txt");
-        file << " [dbg_int]: Grid = [" << GridDimX << ", " << GridDimY << "], Block = " << BlockSize
-             << std::endl;
-
-        for(int bidy = 0; bidy < GridDimY; bidy++)
-        {
-            for(int bidx = 0; bidx < GridDimX; bidx++)
-            {
-                file << "\n ========== block : [" << bidx << ", " << bidy << "] ==========";
-                for(int tid = 0; tid < BlockSize; tid++)
-                {
-                    int gid = (BlockSize * GridDimX) * bidy + BlockSize * bidx + tid;
-
-                    file << "\n [" << tid << "]: ";
-                    for(int i = 0; i < 64; i++) // multi output per thread
-                        file << ck_tile::type_convert<int>(dbg_int_dev.mData[gid * 64 + i])
-                             << ", ";
-                }
-            }
-        }
-
-        file.close();
-    }
-    // dbg_fp8 ---> kernel
-    {
-        auto dbg_fp8_dev = dbg_fp8_buf.ToHost<BDataType>();
-        std::ofstream file("ff_dbg_fp8_kernel.txt");
-        file << " [dbg_fp8]: Grid = [" << GridDimX << ", " << GridDimY
-             << "], Block = " << BlockSize << std::endl;
-
-        for(int bidy = 0; bidy < GridDimY; bidy++)
-        {
-            for(int bidx = 0; bidx < GridDimX; bidx++)
-            {
-                file << "\n ========== block : [" << bidx << ", " << bidy << "] ==========";
-                for(int tid = 0; tid < BlockSize; tid++)
-                {
-                    int gid = (BlockSize * GridDimX) * bidy + BlockSize * bidx + tid;
-
-                    file << "\n [" << tid << "]: ";
-                    for(int i = 0; i < 64; i++) // multi output per thread
-                        file << ck_tile::type_convert<float>(dbg_fp8_dev.mData[gid * 64 + i])
-                             << ", ";
-                }
-            }
-        }
-
-        file.close();
-    }
-    // dbg_fp8
-    {
-        auto dbg_fp8_dev = dbg_fp8_buf.ToHost<BDataType>();
-        std::ofstream file("ff_dbg_fp8.txt");
-        int X = static_cast<int>(N);
-        int Y = static_cast<int>(M);
-        file << " [dbg_fp8]: Row = " << Y << ", Col = " << X << std::endl;
-
-        for(int m = 0; m < Y; m++)
-        {
-            file << "\n ========== row : [" << m << " / " << Y << "] ==========";
-            for(int n = 0; n < X; n++)
-            {
-                if(n % 64 == 0)
-                {
-                    file << "\n [" << n << " : " << n + 63 << "]: ";
-                }
-                int idx = X * m + n;
-                file << ck_tile::type_convert<float>(dbg_fp8_dev.mData[idx]) << ", ";
-            }
-        }
-
-        file.close();
-    }
-    // dbg_f16 ---> kernel
-    {
-        auto dbg_f16_dev = dbg_f16_buf.ToHost<ODataType>();
-        std::ofstream file("ff_dbg_f16_kernel.txt");
-        file << " [dbg_f16]: Grid = [" << GridDimX << ", " << GridDimY
-             << "], Block = " << BlockSize << std::endl;
-
-        for(int bidy = 0; bidy < GridDimY; bidy++)
-        {
-            for(int bidx = 0; bidx < GridDimX; bidx++)
-            {
-                file << "\n ========== block : [" << bidx << ", " << bidy << "] ==========";
-                for(int tid = 0; tid < BlockSize; tid++)
-                {
-                    int gid = (BlockSize * GridDimX) * bidy + BlockSize * bidx + tid;
-
-                    file << "\n [" << tid << "]: ";
-                    for(int i = 0; i < 64; i++) // multi output per thread
-                        file << ck_tile::type_convert<float>(dbg_f16_dev.mData[gid * 64 + i])
-                             << ", ";
-                }
-            }
-        }
-
-        file.close();
-    }
-    // dbg_f16
-    {
-        auto dbg_f16_dev = dbg_f16_buf.ToHost<ODataType>();
-        std::ofstream file("ff_dbg_f16.txt");
-        int X = static_cast<int>(N);
-        int Y = static_cast<int>(M);
-        file << " [dbg_f16]: Row = " << Y << ", Col = " << X << std::endl;
-
-        for(int m = 0; m < Y; m++)
-        {
-            file << "\n ========== row : [" << m << " / " << Y << "] ==========";
-            for(int n = 0; n < X; n++)
-            {
-                if(n % 64 == 0)
-                {
-                    file << "\n [" << n << " : " << n + 63 << "]: ";
-                }
-                int idx = X * m + n;
-                file << ck_tile::type_convert<float>(dbg_f16_dev.mData[idx]) << ", ";
-            }
-        }
-
-        file.close();
-    }
-    // dbg_fp32 ---> kernel
-    {
-        auto dbg_fp32_dev = dbg_fp32_buf.ToHost<float>();
-        std::ofstream file("ff_dbg_fp32_kernel.txt");
-        file << " [dbg_fp32]: Grid = [" << GridDimX << ", " << GridDimY
-             << "], Block = " << BlockSize << std::endl;
-
-        for(int bidy = 0; bidy < GridDimY; bidy++)
-        {
-            for(int bidx = 0; bidx < GridDimX; bidx++)
-            {
-                file << "\n ========== block : [" << bidx << ", " << bidy << "] ==========";
-                for(int tid = 0; tid < BlockSize; tid++)
-                {
-                    int gid = (BlockSize * GridDimX) * bidy + BlockSize * bidx + tid;
-
-                    file << "\n [" << tid << "]: ";
-                    for(int i = 0; i < 64; i++) // multi output per thread
-                        file << ck_tile::type_convert<float>(dbg_fp32_dev.mData[gid * 64 + i])
-                             << ", ";
-
-                    // if(tid % 64 == 0) // one output per thread
-                    //     file << "\n [" << tid << " : " << tid + 63 << "]: ";
-                    // file << ck_tile::type_convert<float>(dbg_bf16.mData[gid]) << ", ";
-                }
-            }
-        }
-
-        file.close();
-    }
-    // dbg_fp32
-    {
-        auto dbg_fp32_dev = dbg_fp32_buf.ToHost<float>();
-        std::ofstream file("ff_dbg_fp32.txt");
-        int X = static_cast<int>(N);
-        int Y = static_cast<int>(M);
-        file << " [dbg_fp32]: Row = " << Y << ", Col = " << X << std::endl;
-
-        for(int m = 0; m < Y; m++)
-        {
-            file << "\n ========== row : [" << m << " / " << Y << "] ==========";
-            for(int n = 0; n < X; n++)
-            {
-                if(n % 64 == 0)
-                {
-                    file << "\n [" << n << " : " << n + 63 << "]: ";
-                }
-                int idx = X * m + n;
-                file << ck_tile::type_convert<float>(dbg_fp32_dev.mData[idx]) << ", ";
-            }
-        }
-
-        file.close();
-    }
     // a_host
     {
         std::ofstream file("ff_a_host.txt");
@@ -603,12 +458,13 @@ bool run(const ck_tile::ArgParser& arg_parser)
 
         file.close();
     }
-    // permute_b
+    // b_shuffle
     {
-        std::ofstream file("ff_b_perm_host.txt");
-        int X = static_cast<int>(K);
-        int Y = static_cast<int>(N);
-        file << " [b_perm_host]: Row = " << Y << ", Col = " << X << std::endl;
+        std::ofstream file("ff_b_shuffle_host.txt");
+        int mfmaN = 16;
+        int X = mfmaN * K;
+        int Y = static_cast<int>(N) * static_cast<int>(K) / X;
+        file << " [b_shuffle_host]: Row = " << Y << ", Col = " << X << std::endl;
 
         for(int y = 0; y < Y; y++)
         {
@@ -629,9 +485,9 @@ bool run(const ck_tile::ArgParser& arg_parser)
     }
     // sa_host
     {
-        std::ofstream file("ff_sa_host.txt");
-        int X = static_cast<int>(1);
-        int Y = static_cast<int>(M);
+        std::ofstream file("ff_scale_a_host.txt");
+        int X = static_cast<int>(M);
+        int Y = static_cast<int>(K / 128);
         file << " [sa_host]: Row = " << Y << ", Col = " << X << std::endl;
 
         for(int y = 0; y < Y; y++)
@@ -640,10 +496,10 @@ bool run(const ck_tile::ArgParser& arg_parser)
             for(int x = 0; x < X; x++)
             {
                 int idx = X * y + x;
-                //if(idx % 16 == 0)
-                //{
-                //    file << "\n [" << x << " : " << x + 15 << " ]: ";
-                //}
+                if(x % 16 == 0)
+                {
+                    file << "\n [" << x << " : " << x + 15 << " ]: ";
+                }
 
                 file << ck_tile::type_convert<float>(sa_host.mData[idx]) << ", ";
             }
@@ -653,9 +509,9 @@ bool run(const ck_tile::ArgParser& arg_parser)
     }
     // sb_host
     {
-        std::ofstream file("ff_sb_host.txt");
-        int X = static_cast<int>(N);
-        int Y = static_cast<int>(1);
+        std::ofstream file("ff_scale_b_host.txt");
+        int X = static_cast<int>(N / 128);
+        int Y = static_cast<int>(K / 128);
         file << " [sb_host]: Row = " << Y << ", Col = " << X << std::endl;
 
         for(int y = 0; y < Y; y++)
@@ -664,62 +520,12 @@ bool run(const ck_tile::ArgParser& arg_parser)
             for(int x = 0; x < X; x++)
             {
                 int idx = X * y + x;
-                if(idx % 16 == 0)
+                if(x % 16 == 0)
                 {
                     file << "\n [" << x << " : " << x + 15 << " ]: ";
                 }
 
                 file << ck_tile::type_convert<float>(sb_host.mData[idx]) << ", ";
-            }
-        }
-
-        file.close();
-    }
-    // d_dev ---> kernel
-    {
-        auto d_dev = d_buf.ToHost<float>();
-        std::ofstream file("ff_d_dev_kernel.txt");
-        file << " [d_dev]: Grid = [" << GridDimX << ", " << GridDimY << "], Block = " << BlockSize
-             << std::endl;
-
-        for(int bidy = 0; bidy < GridDimY; bidy++)
-        {
-            for(int bidx = 0; bidx < GridDimX; bidx++)
-            {
-                file << "\n ========== block : [" << bidx << ", " << bidy << "] ==========";
-                for(int tid = 0; tid < BlockSize; tid++)
-                {
-                    int gid = (BlockSize * GridDimX) * bidy + BlockSize * bidx + tid;
-
-                    file << "\n [" << tid << "]: ";
-                    for(int i = 0; i < 64; i++) // multi output per thread
-                        file << ck_tile::type_convert<float>(d_dev.mData[gid * 64 + i]) << ", ";
-                }
-            }
-        }
-
-        file.close();
-    }
-    // d_dev
-    {
-        //auto d_dev = d_buf.ToHost<float>();
-        auto d_dev = d_buf.ToHost<ck_tile::bf16_t>();
-        std::ofstream file("ff_d_dev.txt");
-        int X = static_cast<int>(N);
-        int Y = static_cast<int>(M);
-        file << " [d_dev]: Row = " << Y << ", Col = " << X << std::endl;
-
-        for(int y = 0; y < Y; y++)
-        {
-            file << "\n ========== row : [" << y << " / " << Y << "] ==========";
-            for(int x = 0; x < X; x++)
-            {
-                if(x % 64 == 0)
-                {
-                    file << "\n [" << x << " : " << x + 63 << "]: ";
-                }
-                int idx = X * y + x;
-                file << ck_tile::type_convert<float>(d_dev.mData[idx]) << ", ";
             }
         }
 
@@ -743,6 +549,133 @@ bool run(const ck_tile::ArgParser& arg_parser)
                 }
                 int idx = X * y + x;
                 file << ck_tile::type_convert<float>(d_host.mData[idx]) << ", ";
+            }
+        }
+
+        file.close();
+    }
+    // d_dev ---> kernel
+    {
+        auto d_dev = d_buf.ToHost<CDataType>();
+        std::ofstream file("ff_d_dev_kernel.txt");
+        file << " [d_dev]: Grid = [" << GridDimX << ", " << GridDimY << "], Block = " << BlockSize
+             << std::endl;
+
+        for(int bidy = 0; bidy < GridDimY; bidy++)
+        {
+            for(int bidx = 0; bidx < GridDimX; bidx++)
+            {
+                file << "\n ========== block : [" << bidx << ", " << bidy << "] ==========";
+                for(int tid = 0; tid < BlockSize; tid++)
+                {
+                    int gid = (BlockSize * GridDimX) * bidy + BlockSize * bidx + tid;
+
+                    file << "\n [" << tid << "]: ";
+                    for(int i = 0; i < DbgCnt; i++) // multi output per thread
+                        file << ck_tile::type_convert<float>(d_dev.mData[gid * DbgCnt + i]) << ", ";
+                }
+            }
+        }
+
+        file.close();
+    }    
+    // d_f16_dev
+    {
+        auto d_f16_dev = d_f16_buf.ToHost<ODataType>();
+        std::ofstream file("ff_d_f16_dev.txt");
+        int X = static_cast<int>(N);
+        int Y = static_cast<int>(M);
+        file << " [d_f16_dev]: Row = " << Y << ", Col = " << X << std::endl;
+
+        for(int y = 0; y < Y; y++)
+        {
+            file << "\n ========== row : [" << y << " / " << Y << "] ==========";
+            for(int x = 0; x < X; x++)
+            {
+                if(x % 64 == 0)
+                {
+                    file << "\n [" << x << " : " << x + 63 << "]: ";
+                }
+                int idx = X * y + x;
+                file << ck_tile::type_convert<float>(d_f16_dev.mData[idx]) << ", ";
+            }
+        }
+
+        file.close();
+    }
+    // dbg_int ---> kernel
+    {
+        auto dbg_int_dev = dbg_int_buf.ToHost<int>();
+        std::ofstream file("ff_dbg_int_kernel.txt");
+        file << " [dbg_int]: Grid = [" << GridDimX << ", " << GridDimY << "], Block = " << BlockSize
+             << std::endl;
+
+        for(int bidy = 0; bidy < GridDimY; bidy++)
+        {
+            for(int bidx = 0; bidx < GridDimX; bidx++)
+            {
+                file << "\n ========== block : [" << bidx << ", " << bidy << "] ==========";
+                for(int tid = 0; tid < BlockSize; tid++)
+                {
+                    int gid = (BlockSize * GridDimX) * bidy + BlockSize * bidx + tid;
+
+                    file << "\n [" << tid << "]: ";
+                    for(int i = 0; i < DbgCnt; i++)
+                        file << ck_tile::type_convert<int>(dbg_int_dev.mData[gid * DbgCnt + i])
+                             << ", ";
+                }
+            }
+        }
+
+        file.close();
+    }
+    // dbg_fp32 ---> kernel
+    {
+        auto dbg_fp32_dev = dbg_fp32_buf.ToHost<float>();
+        std::ofstream file("ff_dbg_fp32_kernel.txt");
+        file << " [dbg_fp32]: Grid = [" << GridDimX << ", " << GridDimY
+             << "], Block = " << BlockSize << std::endl;
+
+        for(int bidy = 0; bidy < GridDimY; bidy++)
+        {
+            for(int bidx = 0; bidx < GridDimX; bidx++)
+            {
+                file << "\n ========== block : [" << bidx << ", " << bidy << "] ==========";
+                for(int tid = 0; tid < BlockSize; tid++)
+                {
+                    int gid = (BlockSize * GridDimX) * bidy + BlockSize * bidx + tid;
+
+                    file << "\n [" << tid << "]: ";
+                    for(int i = 0; i < DbgCnt; i++)
+                        file << ck_tile::type_convert<float>(dbg_fp32_dev.mData[gid * DbgCnt + i])
+                             << ", ";
+                }
+            }
+        }
+
+        file.close();
+    }
+    // dbg_fp8 ---> kernel
+    {
+        auto dbg_fp8_dev = dbg_fp8_buf.ToHost<ck_tile::fp8_t>();
+        std::ofstream file("ff_dbg_fp8_kernel.txt");
+        file << " [dbg_fp8]: Grid = [" << GridDimX << ", " << GridDimY << "], Block = " << BlockSize
+             << std::endl;
+
+        for(int bidy = 0; bidy < GridDimY; bidy++)
+        {
+            for(int bidx = 0; bidx < GridDimX; bidx++)
+            {
+                file << "\n ========== block : [" << bidx << ", " << bidy << "] ==========";
+                for(int tid = 0; tid < BlockSize; tid++)
+                {
+                    int gid = (BlockSize * GridDimX) * bidy + BlockSize * bidx + tid;
+
+                    file << "\n [" << tid << "]: ";
+                    for(int i = 0; i < DbgCnt; i++)
+                        file << ck_tile::type_convert<float>(dbg_fp8_dev.mData[gid * DbgCnt + i])
+                             << ", ";
+                }
             }
         }
 

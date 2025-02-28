@@ -821,6 +821,14 @@ struct GemmPipelineFlatmmPolicy
         {
             return Flatmm_ff_32x128x256_1x4x1_16x16x32_FP8{};
         }
+
+        if constexpr(std::is_same_v<typename Problem::ADataType, ck_tile::fp8_t> &&
+                     std::is_same_v<typename Problem::GDataType, ck_tile::fp8_t> &&
+                          S_::Block_M == 128 && S_::Block_N == 128 && S_::Block_K == 128 &&
+                          S_::Wave_M == 16 && S_::Wave_N == 16 && S_::Wave_K == 32)
+        {
+            return Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8{};
+        }
     }
 };
 } // namespace ck_tile
