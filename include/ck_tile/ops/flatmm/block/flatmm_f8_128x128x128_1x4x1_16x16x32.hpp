@@ -15,7 +15,7 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_Base // for f8/bf8
     int N = 0;
     int K = 0;
     static constexpr index_t Block_M = 128;
-    static constexpr index_t Block_N = 256;
+    static constexpr index_t Block_N = 128;
     static constexpr index_t Block_K = 128;
 
     static constexpr index_t WavePerBlock_M = 1;
@@ -44,7 +44,7 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_Base // for f8/bf8
 
     static constexpr index_t APerDword = 4;
 
-    static CK_TILE_DEVICE void Print()
+    CK_TILE_DEVICE void Print()
     {
         if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
         {
@@ -71,6 +71,7 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_Base // for f8/bf8
                 static_cast<int>(Block_Nr),
                 static_cast<int>(Block_Kr),
                 static_cast<int>(Block_W));
+            printf("[UK] K = %d, loop_cnt = %d\n", static_cast<int>(K), static_cast<int>(K / Block_K));
         }
     } 
 
@@ -275,22 +276,18 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
                CK_TILE_LDS_ADDR void* smem,
                index_t k,
                index_t tile_offset_a, // for each tile, the offset to move for each unroll
-               index_t tile_offset_b,              
+               index_t tile_offset_b
+#ifdef FEIFEI_DEBUG
+               ,              
                int * dbg_int,
                char* dbg_fp8,
-               short* dbg_bf16,
-               float* dbg_fp32)
+               void* dbg_bf16,
+               float* dbg_fp32
+#endif
+               )
     {
 #ifdef FEIFEI_DEBUG
-        if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
-        {
-            printf("[UK] Flatmm_ff_32x128x256_1x4x1_16x16x32_FP8 -----\n");
-            Print();
-            printf("[UK] ACoords::size() = %d, BCoords::size() = %d\n", 
-                static_cast<int>(ACoords::size()), 
-                static_cast<int>(BCoords::size()));
-            printf("[UK] k = %d, loop_cnt = %d\n", static_cast<int>(k), static_cast<int>(k / Block_K));
-        }
+        Print();
 
         uint32_t tidx = threadIdx.x;
         uint32_t tidy = threadIdx.y;
@@ -300,7 +297,8 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         uint32_t bdmy = blockDim.y;
         uint32_t gdmx = gridDim.x;
         uint32_t gdmy = gridDim.y;
-        uint32_t gid  = ((bdmx * bdmy) * gdmx) * bidy + (bdmx * bdmy) * bidx + bdmx * tidy + tidx;
+        //uint32_t gid  = ((bdmx * bdmy) * gdmx) * bidy + (bdmx * bdmy) * bidx + bdmx * tidy + tidx;
+        uint32_t gid  = ((bdmx * bdmy) * gdmx) * bidy + (bdmx * bdmy) * bidx + tidx;
 
         half_t* dbg_f16 = reinterpret_cast<half_t*>(dbg_bf16);
         for(int i = 0; i < DEBUG_CNT; i++)
@@ -356,9 +354,9 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
 
         fp32x4_t v_acc[4]{.0f};
         //index_t v_os_slda = (static_cast<index_t>(a_sld.cached_coords_[number<0>{}].get_offset() * sizeof(ADataType))) % ((256+16) * 16);
-        int waveIdx = tidx / 64;
-        int ldsRowIdx = tidx % 16;
-        int tidInWave = tidx %64;
+        int waveIdx = threadIdx.x / 64;
+        int ldsRowIdx = threadIdx.x % 16;
+        int tidInWave = threadIdx.x %64;
         int ldsReadVec = 16; // ds_read_b128
         int ldsColIdx = tidInWave / 16 * ldsReadVec;
         int ldsWidth = 128; // tile_K
@@ -374,8 +372,10 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         int thdPerM = thdPerBlock / thdPerK; // 256 / 8 = 32
         int tileM = 128;
         int repeatA = tileM / thdPerM; // 128 / 32 = 4
-        int vmARowIdx = tidx / thdPerK;
-        int vmAColIdx = tidx % thdPerK * elementPerInst;
+        int vmABlkIdx = blockIdx.y;
+        int vmABlkRowIdx = vmABlkIdx * Block_M;
+        int vmARowIdx = threadIdx.x / thdPerK + vmABlkRowIdx;
+        int vmAColIdx = threadIdx.x % thdPerK * elementPerInst;
         int AvmLdAddr0 = (vmARowIdx + thdPerM * 0) * K * sizeof(ADataType) + vmAColIdx * sizeof(ADataType);
         int AvmLdAddr1 = (vmARowIdx + thdPerM * 1) * K * sizeof(ADataType) + vmAColIdx * sizeof(ADataType);
         int AvmLdAddr2 = (vmARowIdx + thdPerM * 2) * K * sizeof(ADataType) + vmAColIdx * sizeof(ADataType);
@@ -384,7 +384,9 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         // lds write 128b A address
         int ldsAPad = 4; // pad = 1 dword
         int ldsAWidth = tileK * sizeof(ADataType) + ldsAPad; // 128 + 4 = 132
-        int AldsWrAddr = vmARowIdx * ldsAWidth + vmAColIdx * sizeof(ADataType);
+        int AldsARowIdx = threadIdx.x / thdPerK;
+        int AldsAColIdx = threadIdx.x % thdPerK * elementPerInst;
+        int AldsWrAddr = AldsARowIdx * ldsAWidth + AldsAColIdx * sizeof(ADataType);
         int AldsWrOffset = thdPerM * ldsAWidth;
         int AldsWrAddr0 = AldsWrAddr + AldsWrOffset * 0;
         int AldsWrAddr1 = AldsWrAddr + AldsWrOffset * 1;
@@ -395,7 +397,7 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         // lds read 128b A address
         int mfmaM = 16;
         int ldsARdThdPerM = mfmaM; // 16
-        int thdInWave = tidx % waveSize; // 0~63
+        int thdInWave = threadIdx.x % waveSize; // 0~63
         int ldsARdRowIdx = thdInWave % ldsARdThdPerM; // 0~15
         int ldsAColBlkIdx = thdInWave / ldsARdThdPerM; // 0~3
         int ldsAColPerBlk = elementPerInst; // 16
@@ -432,7 +434,8 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         int flatBvmLdOffset = mfmaN * mfmaK * warpNum; // 1024
 
         // buffer load dword SA address
-        int saColIdx = tidx % mfmaM; // 0~15
+        int saBlkColId = blockIdx.y * Block_M;
+        int saColIdx = threadIdx.x % mfmaM + saBlkColId; // 0~15
         int saRowIdx = 0;
         int SAvmLdAddr = saRowIdx * M * sizeof(float) + saColIdx * sizeof(float);
         auto res_sa = make_wave_buffer_resource(reinterpret_cast<const float*>(a_scale_ptr), M * K/128 * sizeof(float));
@@ -441,8 +444,10 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         int SAvmTileOffset = __builtin_amdgcn_readfirstlane(tSAvmTileOffset);
 
         // s load dword SB address
-        auto res_sb = make_wave_buffer_resource(reinterpret_cast<const float*>(b_scale_ptr), (N/128) * (K/128) * sizeof(float));
-        float sb_value = 0;
+        const float * sb_cfp32_ptr = reinterpret_cast<const float*>(b_scale_ptr);
+        float * sb_fp32_ptr = const_cast<float*>(sb_cfp32_ptr);
+        float * sb_blk_ptr = sb_fp32_ptr + blockIdx.x;
+        auto res_sb = make_wave_buffer_resource(reinterpret_cast<const float*>(sb_blk_ptr), (N/128) * (K/128) * sizeof(float));
         int tSBvmTileOffset = N / 128 * sizeof(float);
         int SBvmTileOffset = __builtin_amdgcn_readfirstlane(tSBvmTileOffset);
 
@@ -510,17 +515,6 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         register float acc_15y asm("v125");
         register float acc_15z asm("v126");
         register float acc_15w asm("v127");
-
-        register float sa_0 asm("v160");
-        register float sa_1 asm("v161");
-        register float sa_2 asm("v162");
-        register float sa_3 asm("v163");
-        register float sa_4 asm("v164");
-        register float sa_5 asm("v165");
-        register float sa_6 asm("v166");
-        register float sa_7 asm("v167");
-
-        register float sb asm("v176");
 
 #pragma region ASM
 #pragma clang diagnostic push
@@ -598,7 +592,6 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
                 [v_c_15y]"+v"(acc_15y),
                 [v_c_15z]"+v"(acc_15z),
                 [v_c_15w]"+v"(acc_15w),
-                [s_sb]"+s"(sb_value),
                 [s_mem_]"+r"(smem)
             :   [s_res_a0]"s"(res_a[0]),
                 [s_res_a1]"s"(res_a[1]),
@@ -786,11 +779,19 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
 
         // c store to vmem
         ODataType * d_fp16_ptr = reinterpret_cast<ODataType*>(d_ptr);
-        int accVmStRowIdx = tidx % mfmaM;
-        int accVmStCol4Idx = tidx / mfmaM;
+        int vmAccMBlkIdx = blockIdx.y;
+        int vmAccBlkRowIdx = vmAccMBlkIdx * Block_M;
+        int accVmStRowIdx = threadIdx.x % mfmaM + vmAccBlkRowIdx;
+
+        int vmAccNBlkIdx = blockIdx.x;
+        int vmAccBlkColIdx = vmAccNBlkIdx * 128;
+        int accVmStCol4Idx = threadIdx.x / mfmaM;
+
         int accVmStOffsetInCol = 64;
-        int accVmStOffsetInRow = mfmaM;
-        int accVmStOffset = accVmStRowIdx * N + accVmStCol4Idx * 4;
+        int accVmStOffsetInRow = mfmaM;        
+
+        int accVmStOffset = 0;
+        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 0) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
         d_fp16_ptr[accVmStOffset+0] = type_convert<ODataType>(acc_0x);
         d_fp16_ptr[accVmStOffset+1] = type_convert<ODataType>(acc_0y);
         d_fp16_ptr[accVmStOffset+2] = type_convert<ODataType>(acc_0z);
@@ -800,7 +801,7 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol] = type_convert<ODataType>(acc_1z);
         d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol] = type_convert<ODataType>(acc_1w);
 
-        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 1) * N + accVmStCol4Idx * 4;
+        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 1) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
         d_fp16_ptr[accVmStOffset+0] = type_convert<ODataType>(acc_2x);
         d_fp16_ptr[accVmStOffset+1] = type_convert<ODataType>(acc_2y);
         d_fp16_ptr[accVmStOffset+2] = type_convert<ODataType>(acc_2z);
@@ -810,7 +811,7 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol] = type_convert<ODataType>(acc_3z);
         d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol] = type_convert<ODataType>(acc_3w);
 
-        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 2) * N + accVmStCol4Idx * 4;
+        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 2) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
         d_fp16_ptr[accVmStOffset+0] = type_convert<ODataType>(acc_4x);
         d_fp16_ptr[accVmStOffset+1] = type_convert<ODataType>(acc_4y);
         d_fp16_ptr[accVmStOffset+2] = type_convert<ODataType>(acc_4z);
@@ -820,7 +821,7 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol] = type_convert<ODataType>(acc_5z);
         d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol] = type_convert<ODataType>(acc_5w);
 
-        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 3) * N + accVmStCol4Idx * 4;
+        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 3) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
         d_fp16_ptr[accVmStOffset+0] = type_convert<ODataType>(acc_6x);
         d_fp16_ptr[accVmStOffset+1] = type_convert<ODataType>(acc_6y);
         d_fp16_ptr[accVmStOffset+2] = type_convert<ODataType>(acc_6z);
@@ -830,7 +831,7 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol] = type_convert<ODataType>(acc_7z);
         d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol] = type_convert<ODataType>(acc_7w);
 
-        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 4) * N + accVmStCol4Idx * 4;
+        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 4) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
         d_fp16_ptr[accVmStOffset+0] = type_convert<ODataType>(acc_8x);
         d_fp16_ptr[accVmStOffset+1] = type_convert<ODataType>(acc_8y);
         d_fp16_ptr[accVmStOffset+2] = type_convert<ODataType>(acc_8z);
@@ -840,7 +841,7 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol] = type_convert<ODataType>(acc_9z);
         d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol] = type_convert<ODataType>(acc_9w);
 
-        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 5) * N + accVmStCol4Idx * 4;
+        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 5) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
         d_fp16_ptr[accVmStOffset+0] = type_convert<ODataType>(acc_10x);
         d_fp16_ptr[accVmStOffset+1] = type_convert<ODataType>(acc_10y);
         d_fp16_ptr[accVmStOffset+2] = type_convert<ODataType>(acc_10z);
@@ -850,7 +851,7 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol] = type_convert<ODataType>(acc_11z);
         d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol] = type_convert<ODataType>(acc_11w);
 
-        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 6) * N + accVmStCol4Idx * 4;
+        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 6) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
         d_fp16_ptr[accVmStOffset+0] = type_convert<ODataType>(acc_12x);
         d_fp16_ptr[accVmStOffset+1] = type_convert<ODataType>(acc_12y);
         d_fp16_ptr[accVmStOffset+2] = type_convert<ODataType>(acc_12z);
@@ -860,7 +861,7 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol] = type_convert<ODataType>(acc_13z);
         d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol] = type_convert<ODataType>(acc_13w);
 
-        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 7) * N + accVmStCol4Idx * 4;
+        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 7) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
         d_fp16_ptr[accVmStOffset+0] = type_convert<ODataType>(acc_14x);
         d_fp16_ptr[accVmStOffset+1] = type_convert<ODataType>(acc_14y);
         d_fp16_ptr[accVmStOffset+2] = type_convert<ODataType>(acc_14z);

@@ -230,10 +230,9 @@ struct FlatmmUkKernel
 
     CK_TILE_DEVICE void operator()(Kargs kargs) const
     {
-#if 0
+#ifdef FEIFEI_DEBUG
         if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
         {
-            printf("[KERNEL] FlatmmUkKernel =====\n");
             printf("[KERNEL] blockDim: [%d, %d], gridDim: [%d, %d]\n",
             static_cast<int>(blockDim.x),
             static_cast<int>(blockDim.y),
@@ -241,26 +240,6 @@ struct FlatmmUkKernel
             static_cast<int>(gridDim.y));
             printf("[KERNEL] lds = %.3f (KB)\n", GetSmemSize() / 1024.0f);
         }
-
-        [[maybe_unused]] uint32_t tidx = threadIdx.x; // 0~255
-        [[maybe_unused]] uint32_t tidy = threadIdx.y; // 0~0
-        [[maybe_unused]] uint32_t bidx = blockIdx.x;  // 0~1
-        [[maybe_unused]] uint32_t bidy = blockIdx.y;  // 0~51
-        [[maybe_unused]] uint32_t bdmx = blockDim.x;  // 256
-        [[maybe_unused]] uint32_t bdmy = blockDim.y;  // 1
-        [[maybe_unused]] uint32_t gdmx = gridDim.x;   // 2
-        [[maybe_unused]] uint32_t gdmy = gridDim.y; // 52
-        [[maybe_unused]] uint32_t gid = ((bdmx * bdmy) * gdmx) * bidy 
-                                        + (bdmx * bdmy) * bidx 
-                                        + bdmx * tidy
-                                        + tidx;
-
-        [[maybe_unused]]int * dbg_int = static_cast<int*>(kargs.dbg_int_ptr);
-        [[maybe_unused]]short * dbg_bf16 = static_cast<short*>(kargs.dbg_bf16_ptr);
-        [[maybe_unused]]float * dbg_fp32 = static_cast<float*>(kargs.dbg_fp32_ptr);
-
-        dbg_int[gid] = -1;
-        dbg_fp32[gid] = -1.0f;
 #endif
 
         __shared__ CK_TILE_LDS_ADDR char smem[GetSmemSize()];

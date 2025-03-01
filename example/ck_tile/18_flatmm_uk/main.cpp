@@ -6,6 +6,9 @@
 
 #include "ck_tile/host.hpp"
 #include "flatmm_uk.hpp"
+#ifndef FEIFEI_DEBUG
+#define DEBUG_CNT 1
+#endif
 
 // different threshold for different dtype
 template <typename DataType>
@@ -146,9 +149,10 @@ auto shuffle_weight(const ck_tile::HostTensor<T>& t, std::string mfma_dtype, int
 auto create_args(int argc, char* argv[])
 {
     ck_tile::ArgParser arg_parser;
-    arg_parser.insert("m", "128", "num of m")    // 64,  32,
-        .insert("n", "128", "num of n")        // 128, 1280, 8192, 7168, 8192
-        .insert("k", "1152", "num of k")        // 512, 8192, 1024, 8192, 3584
+    arg_parser
+        .insert("m", "256", "num of m")     // 128,
+        .insert("n", "256", "num of n")     // 128,
+        .insert("k", "384", "num of k")     // 128, 
         .insert("t", "64", "num input tokens")
         .insert("e", "8", "num of experts")
         .insert("tk", "1", "topk")
@@ -403,9 +407,9 @@ bool run(const ck_tile::ArgParser& arg_parser)
         std::cout << "The CPU veification result is:" << (pass ? "correct" : "fail") << std::endl;
     }
 
-#if 1
-    int GridDimX  = 1;
-    int GridDimY  = 1;
+#ifdef FEIFEI_DEBUG
+    int GridDimX  = N / 128;
+    int GridDimY  = M / 128;
     int BlockDimX = 64;
     int BlockDimY = 4;
     int DbgCnt    = DEBUG_CNT;

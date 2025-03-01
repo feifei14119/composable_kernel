@@ -113,18 +113,7 @@ struct GemmPipeline_FlatmmUk
 
         array<index_t, MRepeat> coords;
         static_for<0, MRepeat, 1>{}([&](auto i) { coords.at(i) = base_coord + i * MLans; });
-#if 0
-        if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
-        {
-            printf("[PIPE] GetRowCoords_A():\n");
-            printf("[PIPE] kAlignmentA = %d, KLans = %d, MLans = %d, MRepeat = %d\n",
-                static_cast<int>(kAlignmentA),  // buffer_load_dword   for A element cnt
-                static_cast<int>(KLans),        // how many cols will be load once
-                static_cast<int>(MLans),        // how many rows will be load once
-                static_cast<int>(MRepeat));     // how many times need to load
-            printf("[PIPE] coord.size() = %d\n", coords.size());
-        }
-#endif        
+        
         return coords;
     }
     CK_TILE_DEVICE auto GetRowCoords_O2(index_t base_offset)
@@ -207,30 +196,29 @@ struct GemmPipeline_FlatmmUk
     template <typename Karg>
     CK_TILE_DEVICE auto operator()(const Karg& kargs, CK_TILE_LDS_ADDR void* smem)
     {
-#if 0
-        if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
-        {
-            printf("[PIPE] GemmPipeline_FlatmmUk =====\n");
-            printf("[PIPE] GetSmemSize = %d (Byte)\n", static_cast<int>(GetSmemSize()));
-        }
+#ifdef FEIFEI_DEBUG
+        uint32_t tidx = threadIdx.x;
+        uint32_t tidy = threadIdx.y;
+        uint32_t bidx = blockIdx.x;
+        uint32_t bidy = blockIdx.y;
+        uint32_t bdmx = blockDim.x;
+        uint32_t bdmy = blockDim.y;
+        uint32_t gdmx = gridDim.x;
+        uint32_t gdmy = gridDim.y;
+        uint32_t gid  = ((bdmx * bdmy) * gdmx) * bidy + (bdmx * bdmy) * bidx + bdmx * tidy + tidx;
 
-        [[maybe_unused]] uint32_t tidx = threadIdx.x; // 0~255
-        [[maybe_unused]] uint32_t tidy = threadIdx.y; // 0~0
-        [[maybe_unused]] uint32_t bidx = blockIdx.x;  // 0~1
-        [[maybe_unused]] uint32_t bidy = blockIdx.y;  // 0~51
-        [[maybe_unused]] uint32_t bdmx = blockDim.x;  // 256
-        [[maybe_unused]] uint32_t bdmy = blockDim.y;  // 1
-        [[maybe_unused]] uint32_t gdmx = gridDim.x;   // 2
-        [[maybe_unused]] uint32_t gdmy = gridDim.y; // 52
-        [[maybe_unused]] uint32_t gid = ((bdmx * bdmy) * gdmx) * bidy 
-                                        + (bdmx * bdmy) * bidx 
-                                        + bdmx * tidy
-                                        + tidx;
+        int* dbg_int    = static_cast<int*>(kargs.dbg_int_ptr);
+        char* dbg_fp8   = static_cast<char*>(kargs.dbg_fp8_ptr);
+        half_t* dbg_f16  = reinterpret_cast<half_t*>(kargs.dbg_f16_ptr);
+        float* dbg_fp32 = static_cast<float*>(kargs.dbg_fp32_ptr);
+
+        for(int i = 0; i < DEBUG_CNT; i++)
+        {
+            dbg_int[gid * DEBUG_CNT + i]  = -1;
+            dbg_fp32[gid * DEBUG_CNT + i] = -1.0f;
+            dbg_f16[gid * DEBUG_CNT + i]  = ck_tile::type_convert<ck_tile::half_t>(-1.0f);
+        }
 #endif
-        [[maybe_unused]] int* dbg_int    = static_cast<int*>(kargs.dbg_int_ptr);
-        [[maybe_unused]] char* dbg_fp8   = static_cast<char*>(kargs.dbg_fp8_ptr);
-        [[maybe_unused]] short* dbg_f16  = static_cast<short*>(kargs.dbg_f16_ptr);
-        [[maybe_unused]] float* dbg_fp32 = static_cast<float*>(kargs.dbg_fp32_ptr);
 
         // ----------------------------------------------------------------------------
         // a
@@ -244,15 +232,7 @@ struct GemmPipeline_FlatmmUk
                        threadIdx.x % (BlockShape::Block_K / kAlignmentA) * kAlignmentA;
             },
             number<row_ids_a.size()>{});
-#if 0
-        for(int i = 0; i < row_ids_a.size(); i++)
-        {
-            const ADataType* a_ptr = reinterpret_cast<const ADataType*>(kargs.a_ptr);
-            int idx = row_ids_a[i] * kargs.hidden_size + threadIdx.x % (BlockShape::Block_K / kAlignmentA) * kAlignmentA;
-            dbg_int[gid * 64  + i] = idx;
-            dbg_fp32[gid * 64 + i] = type_convert<float>(a_ptr[idx]);
-        }
-#endif        
+ 
         // ----------------------------------------------------------------------------
         // b
         index_t nr = kargs.intermediate_size / BlockShape::Wave_N;  // divide N in W
@@ -282,21 +262,6 @@ struct GemmPipeline_FlatmmUk
         auto b_res    = b_win.get_bottom_tensor_view().get_buffer_view().cached_buf_res_;
         auto b_coords = generate_tuple([&](auto i) { return b_win.cached_coords_[i].get_offset(); },
                                        number<decltype(b_win)::NumAccess_NonLinear>{});
-
-#if 0
-        if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
-        {
-            printf("[PIPE] b_win: nr = %d, kr = %d, interm_idx_nr = %d, cached_coords_.size() = %d\n", 
-                nr, kr, interm_idx_nr,
-                b_win.cached_coords_.size());
-        }
-        dbg_int[gid * 64  + 0] = nr;
-        dbg_int[gid * 64  + 1] = kr;
-        dbg_int[gid * 64  + 2] = interm_idx_nr;
-        dbg_int[gid * 64  + 3] = interm_idx_nr * kr * BlockShape::Block_W;
-        dbg_int[gid * 64  + 4] = b_win.cached_coords_[0].get_offset();
-        dbg_int[gid * 64  + 5] = b_win.cached_coords_[1].get_offset();
-#endif        
 
         // ----------------------------------------------------------------------------
         // a_scale
@@ -363,11 +328,15 @@ struct GemmPipeline_FlatmmUk
                smem,
                kargs.hidden_size,
                BlockShape::Block_K,                        // tile offset for B matrix each unroll
-               BlockShape::Block_Kr * BlockShape::Block_W, // tile offset for B matrix each unroll
+               BlockShape::Block_Kr * BlockShape::Block_W // tile offset for B matrix each unroll
+#ifdef FEIFEI_DEBUG
+                ,               
                dbg_int,
                dbg_fp8,
                dbg_f16,
-               dbg_fp32);
+               dbg_fp32
+#endif
+               );
 
         // ----------------------------------------------------------------------------
 #if 0        
