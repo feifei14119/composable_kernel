@@ -523,12 +523,12 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         register float sb asm("v176");
 
 #pragma region ASM
-        // B nr->kr
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Winline-asm"
         // clang-format off
         asm volatile(
 #include "uk/flatmm_f8_uk_gfx9_128x128x128_1x4x1_16x16x32.inc"
+    "  s_nop 2 \n"
             :   [s_loop_cnt]"+s"(s_loop_cnt),
                 [v_acc_0]"+v"(v_acc[0]),
                 [v_acc_1]"+v"(v_acc[1]),
@@ -598,15 +598,6 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
                 [v_c_15y]"+v"(acc_15y),
                 [v_c_15z]"+v"(acc_15z),
                 [v_c_15w]"+v"(acc_15w),
-                [v_sa_0]"+v"(sa_0),
-                [v_sa_1]"+v"(sa_1),
-                [v_sa_2]"+v"(sa_2),
-                [v_sa_3]"+v"(sa_3),
-                [v_sa_4]"+v"(sa_4),
-                [v_sa_5]"+v"(sa_5),
-                [v_sa_6]"+v"(sa_6),
-                [v_sa_7]"+v"(sa_7),
-                [v_sb]"+v"(sb),
                 [s_sb]"+s"(sb_value),
                 [s_mem_]"+r"(smem)
             :   [s_res_a0]"s"(res_a[0]),
@@ -673,10 +664,12 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
                 "a230", "a231", "a232", "a233", "a234", "a235", "a236", "a237", "a238", "a239", 
                 "a240", "a241", "a242", "a243", "a244", "a245", "a246", "a247", "a248", "a249", 
                 "a250", "a251", "a252", "a253", "a254", "a255", 
-                "s16", "s17", "s18", "s19", "s20", "s21", "s22", "s23", 
-                "s24", "s25", "s26", "s27", "s28", "s29",
-                "s30", // scale b
-                "s86",    // s86 as tmp
+                "s16", "s17", "s18", "s19", 
+                "s20", "s21", "s22", "s23", 
+                "s24", "s25", "s26", "s27", 
+                "s28", "s29", 
+                "s30", "s31", // scale b
+                "s86",        // tmp
                 "v64",  "v65",  "v66",  "v67",  "v68",  "v69",
                 "v70",  "v71",  "v72",  "v73",  "v74",  "v75",  "v76",  "v77",  "v78",  "v79",
                 "v80",  "v81",  "v82",  "v83",  "v84",  "v85",  "v86",  "v87",  "v88",  "v89",
