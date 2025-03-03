@@ -998,7 +998,7 @@
     " buffer_load_dwordx4  v[140:143], %[v_a_vm_ld_addr3],  s[16:19], 0 offen           \n"
     " s_waitcnt vmcnt(0)                                                                \n"
     // move to next A1
-    " s_cmp_gt_i32  %[s_loop_cnt] 2                                     \n"
+    " s_cmp_gt_i32  %[s_loop_cnt] 3                                     \n"
     " s_cselect_b32 s86, %[s_tile_os_a], 0                              \n"
     " s_add_u32     s16, s86, s16                                       \n"
     " s_addc_u32    s17, 0, s17                                         \n"
@@ -1088,7 +1088,7 @@
     " buffer_load_dwordx4  v[156:159], %[v_a_vm_ld_addr3],  s[16:19], 0 offen           \n"
     " s_waitcnt vmcnt(0)                                                                \n"
     // move to next A0
-    " s_cmp_gt_i32  %[s_loop_cnt] 2                                     \n"
+    " s_cmp_gt_i32  %[s_loop_cnt] 4                                     \n"
     " s_cselect_b32 s86, %[s_tile_os_a], 0                              \n"
     " s_add_u32     s16, s86, s16                                       \n"
     " s_addc_u32    s17, 0, s17                                         \n"
@@ -1171,6 +1171,11 @@
 
     // MFMA PING =========================================================================
     // C: [0~15]M * [0~63]N --------------------------------------------------------------
+    //// A1: vmem -> vgpr
+    //" buffer_load_dwordx4  v[144:147], %[v_a_vm_ld_addr0],  s[16:19], 0 offen           \n"
+    //" buffer_load_dwordx4  v[148:151], %[v_a_vm_ld_addr1],  s[16:19], 0 offen           \n"
+    //" buffer_load_dwordx4  v[152:155], %[v_a_vm_ld_addr2],  s[16:19], 0 offen           \n"
+    //" buffer_load_dwordx4  v[156:159], %[v_a_vm_ld_addr3],  s[16:19], 0 offen           \n"
     _UK_MFMA_   " v[192:195], acc[0:1],   acc[64:65], 0                 \n"
     _UK_MFMA_   " v[192:195], acc[2:3],   acc[66:67], v[192:195]        \n"
     _UK_MFMA_   " v[192:195], acc[4:5],   acc[68:69], v[192:195]        \n"
@@ -1203,6 +1208,12 @@
     _UK_MFMA_   " v[196:199], acc[14:15], acc[78:79], v[196:199]        \n"
     " v_fmac_f32 %[v_c_2w],  v195, v161                                 \n"
     // C: [32~47]M   * [0~63]N -----------------------------------------------------------
+    //" s_waitcnt vmcnt(0)                                                \n" // A1: vmem -> vgpr
+    //// A0: vgpr -> lds
+    //" ds_write_b128 %[v_a_lds_wr_addr], v[128:131]  offset: %[n_a_lds_wr_offset] * 0    \n"
+    //" ds_write_b128 %[v_a_lds_wr_addr], v[132:135]  offset: %[n_a_lds_wr_offset] * 1    \n"
+    //" ds_write_b128 %[v_a_lds_wr_addr], v[136:139]  offset: %[n_a_lds_wr_offset] * 2    \n"
+    //" ds_write_b128 %[v_a_lds_wr_addr], v[140:143]  offset: %[n_a_lds_wr_offset] * 3    \n"
     _UK_MFMA_   " v[192:195], acc[0:1],   acc[80:81], 0                 \n"
     " v_fmac_f32 %[v_c_3x],  v196, v161                                 \n"
     _UK_MFMA_   " v[192:195], acc[2:3],   acc[82:83], v[192:195]        \n"
@@ -1239,6 +1250,25 @@
     _UK_MFMA_   " v[196:199], acc[14:15], acc[94:95], v[196:199]        \n"
     " v_fmac_f32 %[v_c_6w],  v195, v163                                 \n"
     // C: [64~79]M   * [0~63]N -----------------------------------------------------------
+    //" s_waitcnt lgkmcnt(0)                                              \n" // A0: vgpr -> lds
+    //" s_barrier                                                         \n" // A0: vgpr -> lds
+    //// A1: lds->accvgpr
+    //" ds_read_b128  acc[128:131], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 0 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // [0~15]M    * [0~63]K
+    //" ds_read_b128  acc[132:135], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 0 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // [0~15]M    * [64~127]K
+    //" ds_read_b128  acc[136:139], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 1 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // [16~31]M   * [0~63]K
+    //" ds_read_b128  acc[140:143], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 1 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // [16~31]M   * [64~127]K
+    //" ds_read_b128  acc[144:147], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 2 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // [32~47]M   * [0~63]K
+    //" ds_read_b128  acc[148:151], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 2 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // [32~47]M   * [64~127]K
+    //" ds_read_b128  acc[152:155], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 3 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // [48~63]M   * [0~63]K
+    //" ds_read_b128  acc[156:159], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 3 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // [48~63]M   * [64~127]K
+    //" ds_read_b128  acc[160:163], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 4 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // [64~79]M   * [0~63]K
+    //" ds_read_b128  acc[164:167], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 4 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // [64~79]M   * [64~127]K
+    //" ds_read_b128  acc[168:171], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 5 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // [80~95]M   * [0~63]K
+    //" ds_read_b128  acc[172:175], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 5 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // [80~95]M   * [64~127]K
+    //" ds_read_b128  acc[176:179], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 6 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // [96~111]M  * [0~63]K
+    //" ds_read_b128  acc[180:183], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 6 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // [96~111]M  * [64~128]K
+    //" ds_read_b128  acc[184:187], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 7 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // [112~127]M * [0~63]K
+    //" ds_read_b128  acc[188:191], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 7 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // [112~127]M * [64~127]K
     _UK_MFMA_   " v[192:195], acc[0:1],   acc[96:97],   0               \n"
     " v_fmac_f32 %[v_c_7x],  v196, v163                                 \n"
     _UK_MFMA_   " v[192:195], acc[2:3],   acc[98:99],   v[192:195]      \n"
@@ -1275,6 +1305,7 @@
     _UK_MFMA_   " v[196:199], acc[14:15], acc[110:111], v[196:199]      \n"
     " v_fmac_f32 %[v_c_10w], v195, v165                                 \n"
     // C: [96~111]M  * [0~63]N -----------------------------------------------------------
+    //" s_waitcnt lgkmcnt(0)                                              \n" // A1: lds->accvgpr
     _UK_MFMA_   " v[192:195], acc[0:1],   acc[112:113], 0               \n"
     " v_fmac_f32 %[v_c_11x], v196, v165                                 \n"
     _UK_MFMA_   " v[192:195], acc[2:3],   acc[114:115], v[192:195]      \n"
@@ -1316,9 +1347,15 @@
     " v_fmac_f32 %[v_c_15z], v198, v167                                 \n"
     " v_fmac_f32 %[v_c_15w], v199, v167                                 \n"
     // -----------------------------------------------------------------------------------
+    // loop
     "  s_sub_i32     %[s_loop_cnt], %[s_loop_cnt], 1                    \n"
     "  s_cmp_gt_i32  %[s_loop_cnt] 0                                    \n"
     "  s_cbranch_scc0 L_end%=                                           \n"
+    // move to next A0
+    " s_cmp_gt_i32  %[s_loop_cnt] 4                                     \n"
+    " s_cselect_b32 s86, %[s_tile_os_a], 0                              \n"
+    " s_add_u32     s16, s86, s16                                       \n"
+    " s_addc_u32    s17, 0, s17                                         \n"
 #pragma endregion
 
 #pragma region LOOP_2
@@ -1330,7 +1367,7 @@
     " buffer_load_dwordx4  v[140:143], %[v_a_vm_ld_addr3],  s[16:19], 0 offen           \n"
     " s_waitcnt vmcnt(0)                                                                \n"
     // move to next A1
-    " s_cmp_gt_i32  %[s_loop_cnt] 1                                     \n"
+    " s_cmp_gt_i32  %[s_loop_cnt] 4                                     \n"
     " s_cselect_b32 s86, %[s_tile_os_a], 0                              \n"
     " s_add_u32     s16, s86, s16                                       \n"
     " s_addc_u32    s17, 0, s17                                         \n"
@@ -1562,6 +1599,16 @@
     "  s_cmp_gt_i32  %[s_loop_cnt] 0                                    \n"
     "  s_cbranch_scc0 L_end%=                                           \n"
     "  s_branch     L_start%=                                           \n"
+#pragma endregion
+
+#pragma region LOOP_OUT_1
+"L_loopout1%=:                                                          \n"
+
+#pragma endregion
+
+#pragma region LOOP_OUT_2
+"L_loopout2%=:                                                          \n"
+
 #pragma endregion
 
 "L_end%=:                                                               \n"
