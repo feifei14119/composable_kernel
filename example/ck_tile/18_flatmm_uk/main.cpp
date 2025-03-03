@@ -150,9 +150,9 @@ auto create_args(int argc, char* argv[])
 {
     ck_tile::ArgParser arg_parser;
     arg_parser
-        .insert("m", "256", "num of m")     // 128,
-        .insert("n", "256", "num of n")     // 128,
-        .insert("k", "384", "num of k")     // 128, 
+        .insert("m", "128", "num of m")     // 128,
+        .insert("n", "128", "num of n")     // 128,
+        .insert("k", "512", "num of k")     // 128, 
         .insert("t", "64", "num input tokens")
         .insert("e", "8", "num of experts")
         .insert("tk", "1", "topk")
