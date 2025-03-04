@@ -1169,19 +1169,19 @@
     "s_cselect_b32 s86, %[s_tile_sb], 0                                 \n"
     "s_add_u32     s28, s86, s28                                        \n"
     "s_addc_u32    s29, 0, s29                                          \n"
-#endif    
-    // A0: vgpr -> lds (lgkmcnt)
-    " s_waitcnt vmcnt(0)                                                \n" // A0: vmem -> vgpr
-    " ds_write_b128 %[v_a_lds_wr_addr], v[128:131]  offset: %[n_a_lds_wr_offset] * 0    \n"
-    " ds_write_b128 %[v_a_lds_wr_addr], v[132:135]  offset: %[n_a_lds_wr_offset] * 1    \n"
-    " ds_write_b128 %[v_a_lds_wr_addr], v[136:139]  offset: %[n_a_lds_wr_offset] * 2    \n"
-    " ds_write_b128 %[v_a_lds_wr_addr], v[140:143]  offset: %[n_a_lds_wr_offset] * 3    \n"
+#endif
+    //// A0: vgpr -> lds (lgkmcnt)
+    //" s_waitcnt vmcnt(0)                                                \n" // A0: vmem -> vgpr
+    //" ds_write_b128 %[v_a_lds_wr_addr], v[128:131]  offset: %[n_a_lds_wr_offset] * 0    \n"
+    //" ds_write_b128 %[v_a_lds_wr_addr], v[132:135]  offset: %[n_a_lds_wr_offset] * 1    \n"
+    //" ds_write_b128 %[v_a_lds_wr_addr], v[136:139]  offset: %[n_a_lds_wr_offset] * 2    \n"
+    //" ds_write_b128 %[v_a_lds_wr_addr], v[140:143]  offset: %[n_a_lds_wr_offset] * 3    \n"
 
-    // A1: vmem -> vgpr
-    " buffer_load_dwordx4  v[144:147], %[v_a_vm_ld_addr0],  s[16:19], 0 offen           \n"
-    " buffer_load_dwordx4  v[148:151], %[v_a_vm_ld_addr1],  s[16:19], 0 offen           \n"
-    " buffer_load_dwordx4  v[152:155], %[v_a_vm_ld_addr2],  s[16:19], 0 offen           \n"
-    " buffer_load_dwordx4  v[156:159], %[v_a_vm_ld_addr3],  s[16:19], 0 offen           \n"
+    //// A1: vmem -> vgpr
+    //" buffer_load_dwordx4  v[144:147], %[v_a_vm_ld_addr0],  s[16:19], 0 offen           \n"
+    //" buffer_load_dwordx4  v[148:151], %[v_a_vm_ld_addr1],  s[16:19], 0 offen           \n"
+    //" buffer_load_dwordx4  v[152:155], %[v_a_vm_ld_addr2],  s[16:19], 0 offen           \n"
+    //" buffer_load_dwordx4  v[156:159], %[v_a_vm_ld_addr3],  s[16:19], 0 offen           \n"
 
     // MFMA PING =========================================================================
     " s_waitcnt vmcnt(0)                                                \n" // B0: vmem -> acc
@@ -1224,6 +1224,19 @@
     " buffer_load_dword    v175, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 7    \n" // [112~127]M
     // scale b1 (lgkmcnt)
     " s_load_dword         s31, s[28:29],  0                                                                \n"
+
+    // A0: vgpr -> lds (lgkmcnt)
+    //" s_waitcnt vmcnt(0)                                                \n" // A0: vmem -> vgpr
+    " ds_write_b128 %[v_a_lds_wr_addr], v[128:131]  offset: %[n_a_lds_wr_offset] * 0    \n"
+    " ds_write_b128 %[v_a_lds_wr_addr], v[132:135]  offset: %[n_a_lds_wr_offset] * 1    \n"
+    " ds_write_b128 %[v_a_lds_wr_addr], v[136:139]  offset: %[n_a_lds_wr_offset] * 2    \n"
+    " ds_write_b128 %[v_a_lds_wr_addr], v[140:143]  offset: %[n_a_lds_wr_offset] * 3    \n"
+    // A1: vmem -> vgpr
+    " buffer_load_dwordx4  v[144:147], %[v_a_vm_ld_addr0],  s[16:19], 0 offen           \n"
+    " buffer_load_dwordx4  v[148:151], %[v_a_vm_ld_addr1],  s[16:19], 0 offen           \n"
+    " buffer_load_dwordx4  v[152:155], %[v_a_vm_ld_addr2],  s[16:19], 0 offen           \n"
+    " buffer_load_dwordx4  v[156:159], %[v_a_vm_ld_addr3],  s[16:19], 0 offen           \n"
+
     // C: [0~15]M * [0~63]N --------------------------------------------------------------
     _UK_MFMA_   " v[192:195], acc[0:1],   acc[64:65], 0                 \n"
     _UK_MFMA_   " v[192:195], acc[2:3],   acc[66:67], v[192:195]        \n"
@@ -1498,18 +1511,18 @@
     " s_add_u32     s28, s86, s28                                       \n"
     " s_addc_u32    s29, 0, s29                                         \n"
 #endif
-    // A1: vgpr -> lds (lgkmcnt)
-     " s_waitcnt vmcnt(0)                                                \n" // A1: vmem -> vgpr
-    " ds_write_b128 %[v_a_lds_wr_addr], v[144:147]  offset: %[n_a_lds_wr_offset] * 0 + %[n_a_lds_pingpang_sz]   \n"
-    " ds_write_b128 %[v_a_lds_wr_addr], v[148:151]  offset: %[n_a_lds_wr_offset] * 1 + %[n_a_lds_pingpang_sz]   \n"
-    " ds_write_b128 %[v_a_lds_wr_addr], v[152:155]  offset: %[n_a_lds_wr_offset] * 2 + %[n_a_lds_pingpang_sz]   \n"
-    " ds_write_b128 %[v_a_lds_wr_addr], v[156:159]  offset: %[n_a_lds_wr_offset] * 3 + %[n_a_lds_pingpang_sz]   \n"
+    //// A1: vgpr -> lds (lgkmcnt)
+    // " s_waitcnt vmcnt(0)                                                \n" // A1: vmem -> vgpr
+    //" ds_write_b128 %[v_a_lds_wr_addr], v[144:147]  offset: %[n_a_lds_wr_offset] * 0 + %[n_a_lds_pingpang_sz]   \n"
+    //" ds_write_b128 %[v_a_lds_wr_addr], v[148:151]  offset: %[n_a_lds_wr_offset] * 1 + %[n_a_lds_pingpang_sz]   \n"
+    //" ds_write_b128 %[v_a_lds_wr_addr], v[152:155]  offset: %[n_a_lds_wr_offset] * 2 + %[n_a_lds_pingpang_sz]   \n"
+    //" ds_write_b128 %[v_a_lds_wr_addr], v[156:159]  offset: %[n_a_lds_wr_offset] * 3 + %[n_a_lds_pingpang_sz]   \n"
 
-    // A0: vmem -> vgpr
-    " buffer_load_dwordx4  v[128:131], %[v_a_vm_ld_addr0],  s[16:19], 0 offen           \n"
-    " buffer_load_dwordx4  v[132:135], %[v_a_vm_ld_addr1],  s[16:19], 0 offen           \n"
-    " buffer_load_dwordx4  v[136:139], %[v_a_vm_ld_addr2],  s[16:19], 0 offen           \n"
-    " buffer_load_dwordx4  v[140:143], %[v_a_vm_ld_addr3],  s[16:19], 0 offen           \n"
+    //// A0: vmem -> vgpr
+    //" buffer_load_dwordx4  v[128:131], %[v_a_vm_ld_addr0],  s[16:19], 0 offen           \n"
+    //" buffer_load_dwordx4  v[132:135], %[v_a_vm_ld_addr1],  s[16:19], 0 offen           \n"
+    //" buffer_load_dwordx4  v[136:139], %[v_a_vm_ld_addr2],  s[16:19], 0 offen           \n"
+    //" buffer_load_dwordx4  v[140:143], %[v_a_vm_ld_addr3],  s[16:19], 0 offen           \n"
 
     // MFMA PANG =========================================================================
     " s_waitcnt vmcnt(0)                                                \n" // B1: vmem -> acc
@@ -1552,6 +1565,19 @@
     " buffer_load_dword    v167, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 7    \n" // [112~127]M
     // scale b0 (lgkmcnt)
     " s_load_dword         s30, s[28:29],  0                                                                \n"
+
+    // A1: vgpr -> lds (lgkmcnt)
+    //" s_waitcnt vmcnt(0)                                                \n" // A1: vmem -> vgpr
+    " ds_write_b128 %[v_a_lds_wr_addr], v[144:147]  offset: %[n_a_lds_wr_offset] * 0 + %[n_a_lds_pingpang_sz]   \n"
+    " ds_write_b128 %[v_a_lds_wr_addr], v[148:151]  offset: %[n_a_lds_wr_offset] * 1 + %[n_a_lds_pingpang_sz]   \n"
+    " ds_write_b128 %[v_a_lds_wr_addr], v[152:155]  offset: %[n_a_lds_wr_offset] * 2 + %[n_a_lds_pingpang_sz]   \n"
+    " ds_write_b128 %[v_a_lds_wr_addr], v[156:159]  offset: %[n_a_lds_wr_offset] * 3 + %[n_a_lds_pingpang_sz]   \n"
+    // A0: vmem -> vgpr
+    " buffer_load_dwordx4  v[128:131], %[v_a_vm_ld_addr0],  s[16:19], 0 offen           \n"
+    " buffer_load_dwordx4  v[132:135], %[v_a_vm_ld_addr1],  s[16:19], 0 offen           \n"
+    " buffer_load_dwordx4  v[136:139], %[v_a_vm_ld_addr2],  s[16:19], 0 offen           \n"
+    " buffer_load_dwordx4  v[140:143], %[v_a_vm_ld_addr3],  s[16:19], 0 offen           \n"
+
     // C: [0~15]M * [0~63]N --------------------------------------------------------------
     _UK_MFMA_   " v[192:195], acc[16:17],   acc[128:129], 0             \n"
     _UK_MFMA_   " v[192:195], acc[18:19],   acc[130:131], v[192:195]    \n"
