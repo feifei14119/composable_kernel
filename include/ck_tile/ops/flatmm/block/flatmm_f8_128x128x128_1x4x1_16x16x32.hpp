@@ -352,16 +352,91 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         index_t loop_cnt = k / Block_K;
         index_t s_loop_cnt = __builtin_amdgcn_readfirstlane(loop_cnt); // current block base row idx
 
-        fp32x4_t v_acc[4]{.0f};
+        int mfmaM = 16;
+        int tileM = 128;
+        int tileK = 128;
+        int waveNum = 4;
+        int waveSize = 64;
+        int waveIdx = threadIdx.x / waveSize;
+        int tidInWave = threadIdx.x % waveSize;
+        int thdPerBlock = waveSize * waveNum; // 64 * 4 = 256
+        int dbg_tid = threadIdx.x * 16;
+
         //index_t v_os_slda = (static_cast<index_t>(a_sld.cached_coords_[number<0>{}].get_offset() * sizeof(ADataType))) % ((256+16) * 16);
-        int waveIdx = threadIdx.x / 64;
         int ldsRowIdx = threadIdx.x % 16;
-        int tidInWave = threadIdx.x %64;
         int ldsReadVec = 16; // ds_read_b128
         int ldsColIdx = tidInWave / 16 * ldsReadVec;
         int ldsWidth = 128; // tile_K
         index_t v_os_slda = static_cast<index_t>(ldsRowIdx * ldsWidth + ldsColIdx);
 
+#define A_VM_LDS true
+#if A_VM_LDS
+        // buffer load dword to lds A address
+        int ldsAPad = 4 * 8; // pad = 8 dword
+        int ldsAPadRound = 4 * 4; // pad = 4 dword
+        int elementPerVmInst = 4; // dword load 4 A
+        int thdPerK = tileK / elementPerVmInst; // 128 / 4 = 32
+        int thdPerM = thdPerBlock / thdPerK; // 256 / 32 = 8
+        int repeatARound = tileM / thdPerM; // 128 / 8 = 16
+
+        int vmARowCntPerBank = waveNum;             // 4
+        int vmARowBankIdx = tidInWave / thdPerK;    // 0, 1
+        int vmARowIdxInBank = waveIdx;              // 0, 1, 2, 3
+        int vmARowIdxInRound = vmARowBankIdx * vmARowCntPerBank + vmARowIdxInBank;
+        int vmARowCntPerRound = thdPerM;
+
+        int vmABlkIdx = blockIdx.y;
+        int vmABlkRowIdx = vmABlkIdx * Block_M;
+
+        int vmARowIdx = vmARowIdxInRound + vmABlkRowIdx;
+        int vmAColIdx = threadIdx.x % thdPerK * elementPerVmInst;
+        // address count = repeatARound
+        int AvmLdAddr0  = (vmARowIdx + vmARowCntPerRound * 0 ) * K * sizeof(ADataType) + vmAColIdx * sizeof(ADataType);
+        int AvmLdAddr1  = (vmARowIdx + vmARowCntPerRound * 1 ) * K * sizeof(ADataType) + vmAColIdx * sizeof(ADataType);
+        int AvmLdAddr2  = (vmARowIdx + vmARowCntPerRound * 2 ) * K * sizeof(ADataType) + vmAColIdx * sizeof(ADataType);
+        int AvmLdAddr3  = (vmARowIdx + vmARowCntPerRound * 3 ) * K * sizeof(ADataType) + vmAColIdx * sizeof(ADataType);
+        int AvmLdAddr4  = (vmARowIdx + vmARowCntPerRound * 4 ) * K * sizeof(ADataType) + vmAColIdx * sizeof(ADataType);
+        int AvmLdAddr5  = (vmARowIdx + vmARowCntPerRound * 5 ) * K * sizeof(ADataType) + vmAColIdx * sizeof(ADataType);
+        int AvmLdAddr6  = (vmARowIdx + vmARowCntPerRound * 6 ) * K * sizeof(ADataType) + vmAColIdx * sizeof(ADataType);
+        int AvmLdAddr7  = (vmARowIdx + vmARowCntPerRound * 7 ) * K * sizeof(ADataType) + vmAColIdx * sizeof(ADataType);
+        int AvmLdAddr8  = (vmARowIdx + vmARowCntPerRound * 8 ) * K * sizeof(ADataType) + vmAColIdx * sizeof(ADataType);
+        int AvmLdAddr9  = (vmARowIdx + vmARowCntPerRound * 9 ) * K * sizeof(ADataType) + vmAColIdx * sizeof(ADataType);
+        int AvmLdAddr10 = (vmARowIdx + vmARowCntPerRound * 10) * K * sizeof(ADataType) + vmAColIdx * sizeof(ADataType);
+        int AvmLdAddr11 = (vmARowIdx + vmARowCntPerRound * 11) * K * sizeof(ADataType) + vmAColIdx * sizeof(ADataType);
+        int AvmLdAddr12 = (vmARowIdx + vmARowCntPerRound * 12) * K * sizeof(ADataType) + vmAColIdx * sizeof(ADataType);
+        int AvmLdAddr13 = (vmARowIdx + vmARowCntPerRound * 13) * K * sizeof(ADataType) + vmAColIdx * sizeof(ADataType);
+        int AvmLdAddr14 = (vmARowIdx + vmARowCntPerRound * 14) * K * sizeof(ADataType) + vmAColIdx * sizeof(ADataType);
+        int AvmLdAddr15 = (vmARowIdx + vmARowCntPerRound * 15) * K * sizeof(ADataType) + vmAColIdx * sizeof(ADataType);
+        
+        int ldsAWaveWidth = waveSize * sizeof(ADataType) * elementPerVmInst + ldsAPad;
+        int AvmLdsM0 = waveIdx * ldsAWaveWidth;
+        int AvmLdsM0Offset = waveNum * ldsAWaveWidth - ldsAPad + ldsAPadRound;
+        int AldsPingPangSize = AvmLdsM0Offset * repeatARound - ldsAPadRound;
+        
+        int sAvmLdsM0 = __builtin_amdgcn_readfirstlane(AvmLdsM0);
+        int sAvmLdsM0Offset = __builtin_amdgcn_readfirstlane(AvmLdsM0Offset);
+        int sAldsPingPangSize = __builtin_amdgcn_readfirstlane(AldsPingPangSize);
+
+        // lds read 128b A address
+        int elementPerLdsInst = 16; // ds read 128b = 16 A
+        int ldsARdThdPerMPerBank = 8;
+        int ldsARdThdPerMPerMfma = mfmaM; // 16
+        int ldsARowBankIdx = (tidInWave % ldsARdThdPerMPerBank) / 4; // 0~3=0; 4~7=1; ...
+        int ldsARowIdxInBank = tidInWave % 4; // 0~3
+        int ldsAColBankIdx = (tidInWave % ldsARdThdPerMPerMfma) / ldsARdThdPerMPerBank; // 0~7=0; 8~15=1; ...
+        int ldsAColIdxInBank = (tidInWave / ldsARdThdPerMPerMfma); // 0~15=0; 16~31=1; 32~47=2; 48~63=3;
+
+        int ldsARowBankSize = AvmLdsM0Offset; 
+        int ldsARowRowIdxInBankSize = ldsAWaveWidth; 
+        int ldsAColBankSize = tileK;
+        int ldsAColIdxInBankSize = elementPerLdsInst * sizeof(ADataType);
+        int AldsRdAddr =
+            ldsARowBankSize * ldsARowBankIdx + ldsARowRowIdxInBankSize * ldsARowIdxInBank +
+            ldsAColBankSize * ldsAColBankIdx + ldsAColIdxInBankSize * ldsAColIdxInBank;
+
+        int AldsRdOffsetInCol = 64 * sizeof(ADataType);
+        int AldsRdOffsetInRow = ldsARowBankSize * 2;
+#else
         // buffer load dwordx4 A address
         int tileK = 128;
         int elementPerInst = 16; // dwordx4 load 16 A
@@ -376,6 +451,7 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         int vmABlkRowIdx = vmABlkIdx * Block_M;
         int vmARowIdx = threadIdx.x / thdPerK + vmABlkRowIdx;
         int vmAColIdx = threadIdx.x % thdPerK * elementPerInst;
+        // address count = repeatA
         int AvmLdAddr0 = (vmARowIdx + thdPerM * 0) * K * sizeof(ADataType) + vmAColIdx * sizeof(ADataType);
         int AvmLdAddr1 = (vmARowIdx + thdPerM * 1) * K * sizeof(ADataType) + vmAColIdx * sizeof(ADataType);
         int AvmLdAddr2 = (vmARowIdx + thdPerM * 2) * K * sizeof(ADataType) + vmAColIdx * sizeof(ADataType);
@@ -396,11 +472,12 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
 
         // lds read 128b A address
         int mfmaM = 16;
+        int elementPerLdsInst = 16; // ds read 128b = 16 A
         int ldsARdThdPerM = mfmaM; // 16
         int thdInWave = threadIdx.x % waveSize; // 0~63
         int ldsARdRowIdx = thdInWave % ldsARdThdPerM; // 0~15
         int ldsAColBlkIdx = thdInWave / ldsARdThdPerM; // 0~3
-        int ldsAColPerBlk = elementPerInst; // 16
+        int ldsAColPerBlk = elementPerLdsInst; // 16
         int ldsARdBlkNum = waveSize / ldsARdThdPerM; // 64 / 16 = 4
         int ldsARdColPerRd = ldsAColPerBlk * ldsARdBlkNum; // 16 * 4 = 64
         int ldsARdColInRead0 = ldsAColPerBlk * ldsAColBlkIdx; // 0,16,32,48
@@ -408,24 +485,7 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         int AldsRdAddr = ldsARdRowIdx * ldsAWidth + ldsARdColInRead0 * sizeof(ADataType);
         int AldsRdOffsetInCol = ldsARdColPerRd * sizeof(ADataType);
         int AldsRdOffsetInRow = ldsARdThdPerM * ldsAWidth;
-
-        int AldsRdAddr00 = AldsRdAddr + AldsRdOffsetInRow * 0 + AldsRdOffsetInCol * 0;
-        int AldsRdAddr10 = AldsRdAddr + AldsRdOffsetInRow * 1 + AldsRdOffsetInCol * 0;
-        int AldsRdAddr20 = AldsRdAddr + AldsRdOffsetInRow * 2 + AldsRdOffsetInCol * 0;
-        int AldsRdAddr30 = AldsRdAddr + AldsRdOffsetInRow * 3 + AldsRdOffsetInCol * 0;
-        int AldsRdAddr40 = AldsRdAddr + AldsRdOffsetInRow * 4 + AldsRdOffsetInCol * 0;
-        int AldsRdAddr50 = AldsRdAddr + AldsRdOffsetInRow * 5 + AldsRdOffsetInCol * 0;
-        int AldsRdAddr60 = AldsRdAddr + AldsRdOffsetInRow * 6 + AldsRdOffsetInCol * 0;
-        int AldsRdAddr70 = AldsRdAddr + AldsRdOffsetInRow * 7 + AldsRdOffsetInCol * 0;
-
-        int AldsRdAddr01 = AldsRdAddr + AldsRdOffsetInRow * 0 + AldsRdOffsetInCol * 1;
-        int AldsRdAddr11 = AldsRdAddr + AldsRdOffsetInRow * 1 + AldsRdOffsetInCol * 1;
-        int AldsRdAddr21 = AldsRdAddr + AldsRdOffsetInRow * 2 + AldsRdOffsetInCol * 1;
-        int AldsRdAddr31 = AldsRdAddr + AldsRdOffsetInRow * 3 + AldsRdOffsetInCol * 1;
-        int AldsRdAddr41 = AldsRdAddr + AldsRdOffsetInRow * 4 + AldsRdOffsetInCol * 1;
-        int AldsRdAddr51 = AldsRdAddr + AldsRdOffsetInRow * 5 + AldsRdOffsetInCol * 1;
-        int AldsRdAddr61 = AldsRdAddr + AldsRdOffsetInRow * 6 + AldsRdOffsetInCol * 1;
-        int AldsRdAddr71 = AldsRdAddr + AldsRdOffsetInRow * 7 + AldsRdOffsetInCol * 1;
+#endif
 
         // buffer load dowrdx4 B address
         int mfmaN = 16;
@@ -433,6 +493,24 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         int warpNum = 4;
         int flatBvmLdOffset = mfmaN * mfmaK * warpNum; // 1024
 
+#if A_VM_LDS
+        // buffer load dword SA address
+        int saBlkColId = blockIdx.y * Block_M;
+        int tidInMfmaM = tidInWave % 16;
+        int swz1 = tidInMfmaM / 4 / 2;
+        int swz2 = tidInMfmaM / 4 % 2;
+        int swz3 = swz2 * 2 + swz1;
+        int MIdxInMfmaM = swz3 * 4 +  tidInMfmaM % 4;
+        int saColIdx = MIdxInMfmaM + saBlkColId;
+        //int saColIdx = threadIdx.x % mfmaM + saBlkColId; // 0~15
+
+        int saRowIdx = 0;
+        int SAvmLdAddr = saRowIdx * M * sizeof(float) + saColIdx * sizeof(float);
+        auto res_sa = make_wave_buffer_resource(reinterpret_cast<const float*>(a_scale_ptr), M * K/128 * sizeof(float));
+        int SAvmLdOffset = mfmaM * sizeof(float);
+        int tSAvmTileOffset = M * sizeof(float);
+        int SAvmTileOffset = __builtin_amdgcn_readfirstlane(tSAvmTileOffset);
+#else
         // buffer load dword SA address
         int saBlkColId = blockIdx.y * Block_M;
         int saColIdx = threadIdx.x % mfmaM + saBlkColId; // 0~15
@@ -442,6 +520,7 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         int SAvmLdOffset = mfmaM * sizeof(float);
         int tSAvmTileOffset = M * sizeof(float);
         int SAvmTileOffset = __builtin_amdgcn_readfirstlane(tSAvmTileOffset);
+#endif        
 
         // s load dword SB address
         const float * sb_cfp32_ptr = reinterpret_cast<const float*>(b_scale_ptr);
@@ -451,6 +530,7 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         int tSBvmTileOffset = N / 128 * sizeof(float);
         int SBvmTileOffset = __builtin_amdgcn_readfirstlane(tSBvmTileOffset);
 
+#pragma region ASM
         register float acc_0x asm("v64");
         register float acc_0y asm("v65");
         register float acc_0z asm("v66");
@@ -516,18 +596,15 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         register float acc_15z asm("v126");
         register float acc_15w asm("v127");
 
-#pragma region ASM
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Winline-asm"
         // clang-format off
         asm volatile(
+#define _A_VM_LDS_ A_VM_LDS
 #include "uk/flatmm_f8_uk_gfx9_128x128x128_1x4x1_16x16x32.inc"
     "  s_nop 2 \n"
+#undef _A_VM_LDS_
             :   [s_loop_cnt]"+s"(s_loop_cnt),
-                [v_acc_0]"+v"(v_acc[0]),
-                [v_acc_1]"+v"(v_acc[1]),
-                [v_acc_2]"+v"(v_acc[2]),
-                [v_acc_3]"+v"(v_acc[3]),
                 [v_c_0x]"+v"(acc_0x),
                 [v_c_0y]"+v"(acc_0y),
                 [v_c_0z]"+v"(acc_0z),
@@ -613,7 +690,6 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
                 [s_m0_init]"s"(m0_init_value),
                 [s_size_per_issue]"s"(size_per_issue),
                 [smem_sz]"n"(smem_buf_size),
-                [n_a_lds_wr_offset]"n"(AldsWrOffset),
                 [n_a_lds_rd_offset_0]"n"(AldsRdOffsetInCol),
                 [n_a_lds_rd_offset_1]"n"(AldsRdOffsetInRow),
                 [n_a_lds_pingpang_sz]"n"(AldsPingPangSize),
@@ -625,7 +701,27 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
                 [v_a_vm_ld_addr1]"v"(static_cast<index_t>(AvmLdAddr1)),
                 [v_a_vm_ld_addr2]"v"(static_cast<index_t>(AvmLdAddr2)),
                 [v_a_vm_ld_addr3]"v"(static_cast<index_t>(AvmLdAddr3)),
-                [v_a_lds_wr_addr]"v"(static_cast<index_t>(AldsWrAddr)),
+                // vmem -> lds
+                [v_a_vm_ld_addr4]"v"(static_cast<index_t>(AvmLdAddr4)),
+                [v_a_vm_ld_addr5]"v"(static_cast<index_t>(AvmLdAddr5)),
+                [v_a_vm_ld_addr6]"v"(static_cast<index_t>(AvmLdAddr6)),
+                [v_a_vm_ld_addr7]"v"(static_cast<index_t>(AvmLdAddr7)),
+                [v_a_vm_ld_addr8]"v"(static_cast<index_t>(AvmLdAddr8)),
+                [v_a_vm_ld_addr9]"v"(static_cast<index_t>(AvmLdAddr9)),
+                [v_a_vm_ld_addr10]"v"(static_cast<index_t>(AvmLdAddr10)),
+                [v_a_vm_ld_addr11]"v"(static_cast<index_t>(AvmLdAddr11)),
+                [v_a_vm_ld_addr12]"v"(static_cast<index_t>(AvmLdAddr12)),
+                [v_a_vm_ld_addr13]"v"(static_cast<index_t>(AvmLdAddr13)),
+                [v_a_vm_ld_addr14]"v"(static_cast<index_t>(AvmLdAddr14)),
+                [v_a_vm_ld_addr15]"v"(static_cast<index_t>(AvmLdAddr15)),
+                [s_a_vm_lds_m0]"s"(static_cast<index_t>(sAvmLdsM0)),
+                [s_a_m0_offset]"s"(static_cast<index_t>(sAvmLdsM0Offset)),
+                [s_a_lds_pingpang_sz]"s"(static_cast<index_t>(sAldsPingPangSize)),
+                // vmem -> vgpr -> lds
+                //[n_a_lds_wr_offset]"n"(AldsWrOffset),
+                //[v_a_lds_wr_addr]"v"(static_cast<index_t>(AldsWrAddr)),
+                // debug
+                [v_dbg_tid]"v"(static_cast<index_t>(dbg_tid)),
                 [v_a_lds_rd_addr]"v"(static_cast<index_t>(AldsRdAddr)),
                 [v_sa_vm_ld_addr]"v"(static_cast<index_t>(SAvmLdAddr)),
                 [v_os_b0]"v"(static_cast<index_t>(cached_coords_b[number<0>{}] * sizeof(BDataType))),
@@ -752,36 +848,40 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         print_f8(acc_3w, dbg_idx);
 
         dbg_idx = 0;
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AvmLdAddr0); // A global load dowrdx4
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AvmLdAddr1); // A global load dowrdx4
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AvmLdAddr2); // A global load dowrdx4
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AvmLdAddr3); // A global load dowrdx4
+        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(tidInMfmaM);
+        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(swz1);
+        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(swz2);
+        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(swz3);
+        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(MIdxInMfmaM);
         dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(-1);
+        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr + AldsRdOffsetInRow * 0 + AldsRdOffsetInCol * 0);
+        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr + AldsRdOffsetInRow * 0 + AldsRdOffsetInCol * 1);
+        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr + AldsRdOffsetInRow * 1 + AldsRdOffsetInCol * 0);
+        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr + AldsRdOffsetInRow * 1 + AldsRdOffsetInCol * 1);
+        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr + AldsRdOffsetInRow * 2 + AldsRdOffsetInCol * 0);
+        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr + AldsRdOffsetInRow * 2 + AldsRdOffsetInCol * 1);
+        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr + AldsRdOffsetInRow * 3 + AldsRdOffsetInCol * 0);
+        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr + AldsRdOffsetInRow * 3 + AldsRdOffsetInCol * 1);
+        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr + AldsRdOffsetInRow * 4 + AldsRdOffsetInCol * 0);
+        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr + AldsRdOffsetInRow * 4 + AldsRdOffsetInCol * 1);
+        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr + AldsRdOffsetInRow * 5 + AldsRdOffsetInCol * 0);
+        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr + AldsRdOffsetInRow * 5 + AldsRdOffsetInCol * 1);
+        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr + AldsRdOffsetInRow * 6 + AldsRdOffsetInCol * 0);
+        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr + AldsRdOffsetInRow * 6 + AldsRdOffsetInCol * 1);
+        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr + AldsRdOffsetInRow * 7 + AldsRdOffsetInCol * 0);
+        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr + AldsRdOffsetInRow * 7 + AldsRdOffsetInCol * 1);
         dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(-1);
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsWrAddr0); // A lds write 128b
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsWrAddr1); // A lds write 128b
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsWrAddr2); // A lds write 128b
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsWrAddr3); // A lds write 128b
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(-1);
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(-1);
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr00); // A lds read 128b
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr10); // A lds read 128b
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr20); // A lds read 128b
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr30); // A lds read 128b
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr40); // A lds read 128b
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr50); // A lds read 128b
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr60); // A lds read 128b
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr70); // A lds read 128b
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(-1);
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(-1);
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(tile_offset_a);
 #endif
 
         // c store to vmem
         ODataType * d_fp16_ptr = reinterpret_cast<ODataType*>(d_ptr);
         int vmAccMBlkIdx = blockIdx.y;
         int vmAccBlkRowIdx = vmAccMBlkIdx * Block_M;
+#if A_VM_LDS
+        int accVmStRowIdx = MIdxInMfmaM + vmAccBlkRowIdx;
+#else
         int accVmStRowIdx = threadIdx.x % mfmaM + vmAccBlkRowIdx;
+#endif        
 
         int vmAccNBlkIdx = blockIdx.x;
         int vmAccBlkColIdx = vmAccNBlkIdx * 128;

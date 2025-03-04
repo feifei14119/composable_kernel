@@ -150,9 +150,9 @@ auto create_args(int argc, char* argv[])
 {
     ck_tile::ArgParser arg_parser;
     arg_parser
-        .insert("m", "768", "num of m")     // 128,
-        .insert("n", "1280", "num of n")     // 128,
-        .insert("k", "4096", "num of k")     // 128, 
+        .insert("m", "128", "num of m")     // 128, 768
+        .insert("n", "128", "num of n")    // 128, 1280
+        .insert("k", "128", "num of k")    // 128, 4096
         .insert("t", "64", "num input tokens")
         .insert("e", "8", "num of experts")
         .insert("tk", "1", "topk")
@@ -680,6 +680,30 @@ bool run(const ck_tile::ArgParser& arg_parser)
                         file << ck_tile::type_convert<float>(dbg_fp8_dev.mData[gid * DbgCnt + i])
                              << ", ";
                 }
+            }
+        }
+
+        file.close();
+    }    
+    // dbg_fp8
+    {
+        auto dbg_fp8_dev = dbg_fp8_buf.ToHost<ck_tile::fp8_t>();
+        std::ofstream file("ff_dbg_fp8.txt");
+        int X = static_cast<int>(128);
+        int Y = static_cast<int>(M * N / X);
+        file << " [dbg_fp8]: Row = " << Y << ", Col = " << X << std::endl;
+
+        for(int y = 0; y < Y; y++)
+        {
+            file << "\n ========== row : [" << y << " / " << Y << "] ==========";
+            for(int x = 0; x < X; x++)
+            {
+                if(x % 64 == 0)
+                {
+                    file << "\n [" << x << " : " << x + 63 << "]: ";
+                }
+                int idx = X * y + x;
+                file << ck_tile::type_convert<float>(dbg_fp8_dev.mData[idx]) << ", ";
             }
         }
 
