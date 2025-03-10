@@ -370,6 +370,7 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         index_t v_os_slda = static_cast<index_t>(ldsRowIdx * ldsWidth + ldsColIdx);
 
 #define A_VM_LDS true
+#define SCALE_A_LDS false
 #if A_VM_LDS
         // buffer load dword to lds A address
         int ldsAPad = 4 * 8; // pad = 8 dword
@@ -494,6 +495,31 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         int flatBvmLdOffset = mfmaN * mfmaK * warpNum; // 1024
 
 #if A_VM_LDS
+
+#if SCALE_A_LDS
+        // buffer load dword SA address
+        int SAPerLdsInst = 4; // da read b128 load 4 SA
+        int SAVmLdColIdx = threadIdx.x % Block_M;
+        int SALdsRdColIdx = threadIdx.x % mfmaM * SAPerLdsInst;
+
+        int saRowIdx = 0;
+        int SAvmLdAddr = saRowIdx * M * sizeof(float) + SAVmLdColIdx * sizeof(float);
+        int SALdsRdAddr = SALdsRdColIdx * sizeof(float);
+        auto res_sa = make_wave_buffer_resource(reinterpret_cast<const float*>(a_scale_ptr), M * K/128 * sizeof(float));
+        int SAvmLdOffset = mfmaM * sizeof(float);
+        int tSAvmTileOffset = M * sizeof(float);
+        int SAvmTileOffset = __builtin_amdgcn_readfirstlane(tSAvmTileOffset);
+
+        int SAldsRdOffset = SAPerLdsInst * mfmaM * sizeof(float);
+        int SAvmLdsM0 = waveIdx * waveSize * sizeof(float);
+        int sSAvmLdsM0 = __builtin_amdgcn_readfirstlane(SAvmLdsM0);
+
+        int tidInMfmaM = tidInWave % 16;
+        int swz1 = tidInMfmaM / 4 / 2;
+        int swz2 = tidInMfmaM / 4 % 2;
+        int swz3 = swz2 * 2 + swz1;
+        int MIdxInMfmaM = swz3 * 4 +  tidInMfmaM % 4;
+#else
         // buffer load dword SA address
         int saBlkColId = blockIdx.y * Block_M;
         int tidInMfmaM = tidInWave % 16;
@@ -510,6 +536,7 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         int SAvmLdOffset = mfmaM * sizeof(float);
         int tSAvmTileOffset = M * sizeof(float);
         int SAvmTileOffset = __builtin_amdgcn_readfirstlane(tSAvmTileOffset);
+#endif
 #else
         // buffer load dword SA address
         int saBlkColId = blockIdx.y * Block_M;
@@ -601,6 +628,7 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         // clang-format off
         asm volatile(
 #define _A_VM_LDS_ A_VM_LDS
+#define _SCALE_A_LDS_ SCALE_A_LDS
 #include "uk/flatmm_f8_uk_gfx9_128x128x128_1x4x1_16x16x32.inc"
     "  s_nop 2 \n"
 #undef _A_VM_LDS_
@@ -692,6 +720,10 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
                 [smem_sz]"n"(smem_buf_size),
                 [n_a_lds_rd_offset_0]"n"(AldsRdOffsetInCol),
                 [n_a_lds_rd_offset_1]"n"(AldsRdOffsetInRow),
+                // scale a: vmem -> lds
+                //[n_sa_lds_rd_offset]"n"(SAldsRdOffset),
+                //[v_sa_lds_rd_addr]"v"(static_cast<index_t>(SALdsRdAddr)),
+                //[s_sa_vm_lds_m0]"s"(static_cast<index_t>(sSAvmLdsM0)),
                 [n_a_lds_pingpang_sz]"n"(AldsPingPangSize),
                 [n_fb_vm_ld_offset]"n"(flatBvmLdOffset),
                 [n_sa_vm_ld_offset]"n"(SAvmLdOffset),
@@ -848,12 +880,12 @@ struct Flatmm_ff_128x128x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x128x128_1
         print_f8(acc_3w, dbg_idx);
 
         dbg_idx = 0;
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(tidInMfmaM);
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(swz1);
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(swz2);
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(swz3);
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(MIdxInMfmaM);
-        dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(-1);
+        //dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(SAVmLdColIdx);
+        //dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(SAvmLdAddr);
+        //dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(SALdsRdColIdx);
+        //dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(SALdsRdAddr);
+        //dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(SAldsRdOffset);
+        //dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(-1);
         dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr + AldsRdOffsetInRow * 0 + AldsRdOffsetInCol * 0);
         dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr + AldsRdOffsetInRow * 0 + AldsRdOffsetInCol * 1);
         dbg_int[gid * DEBUG_CNT + dbg_idx++] = static_cast<index_t>(AldsRdAddr + AldsRdOffsetInRow * 1 + AldsRdOffsetInCol * 0);

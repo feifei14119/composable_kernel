@@ -22,6 +22,9 @@
 #ifndef _A_VM_LDS_
 #define _A_VM_LDS_ true
 #endif
+#ifndef _SCALE_A_LDS_
+#define _SCALE_A_LDS_ true
+#endif
 #define _UK_MFMA_ "v_mfma_f32_16x16x32_fp8_fp8"
 #define _FF_SYNC_ " s_waitcnt vmcnt(0)      \n" \
                   " s_waitcnt lgkmcnt(0)    \n" \
@@ -240,6 +243,22 @@
     " buffer_load_dwordx4  [%[v_c_3x], %[v_c_3y], %[v_c_3z], %[v_c_3w]], %[v_os_b1], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n"
     _FF_SYNC_
     // debug scale A vmem -----------------------------------------------
+    _INIT_ACC_
+#if _SCALE_A_LDS_
+    " buffer_load_dword    %[v_c_0x], %[v_sa_vm_ld_addr],  s[24:27], 0 offen \n"
+    _FF_SYNC_
+    " s_add_u32     m0,  %[s_sa_vm_lds_m0], %[n_a_lds_pingpang_sz] * 2   \n" // to lds sa
+    " buffer_load_dword    %[v_sa_vm_ld_addr],  s[24:27], 0 offen lds \n"
+    _FF_SYNC_
+    // debug lds
+    _INIT_ACC_
+    " ds_read_b128  [%[v_c_0x], %[v_c_0y], %[v_c_0z], %[v_c_0w]], %[v_dbg_tid] offset: %[n_a_lds_pingpang_sz] * 2 \n"
+    _FF_SYNC_
+    _INIT_ACC_
+    " ds_read_b128  [%[v_c_0x], %[v_c_0y], %[v_c_0z], %[v_c_0w]], %[v_sa_lds_rd_addr] offset: %[n_a_lds_pingpang_sz] * 2 + %[n_sa_lds_rd_offset] * 0 \n"
+    " ds_read_b128  [%[v_c_1x], %[v_c_1y], %[v_c_1z], %[v_c_1w]], %[v_sa_lds_rd_addr] offset: %[n_a_lds_pingpang_sz] * 2 + %[n_sa_lds_rd_offset] * 1 \n"
+    _FF_SYNC_
+#else
     " buffer_load_dword    %[v_c_0x], %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 0   \n"
     " buffer_load_dword    %[v_c_0y], %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 1   \n"
     " buffer_load_dword    %[v_c_0z], %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 2   \n"
@@ -248,6 +267,7 @@
     " buffer_load_dword    %[v_c_1y], %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 5   \n"
     " buffer_load_dword    %[v_c_1z], %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 6   \n"
     " buffer_load_dword    %[v_c_1w], %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 7   \n"
+#endif    
     _FF_SYNC_
     // debug scale B vmem ---------------------------------------------
     " s_load_dword         s30, s[28:29],  0    \n"
@@ -2854,3 +2874,6 @@
 
 #undef _UK_MFMA_
 #undef _FF_SYNC_
+#undef _INIT_ACC_
+#undef _SCALE_A_LDS_
+#undef _FF_END_

@@ -145,6 +145,29 @@ auto shuffle_weight(const ck_tile::HostTensor<T>& t, std::string mfma_dtype, int
     }
     return t;
 }
+template <typename T>
+void shuffle_sa(const ck_tile::HostTensor<T>& sa, ck_tile::HostTensor<T>& sfsa)
+{
+    int row = sa.get_lengths()[0];
+    int col = sa.get_lengths()[1];
+    printf("[FF] permute: row = %d, col = %d\n", row, col);
+
+    for(int r = 0; r < row; r++)
+    {
+        for(int c = 0; c < col; c++)
+        {
+            for (int rd = 0; rd < 2; rd++) // 1 read = 16 thread * 4 = 64 element
+            {
+                int cInRd = c % 64;
+                int tid = cInRd % 16; // mfma tid[0..15] need swizzle 0,2,1,3
+                int idInThread = cInRd / 16 % 4;
+                int nc = rd * 64 + tid * 4 + idInThread;
+                int oc = rd * 64 + cInRd;
+                sfsa(r, nc) = sa(r, oc);
+            }
+        }
+    }
+}
 
 auto create_args(int argc, char* argv[])
 {
@@ -308,6 +331,8 @@ bool run(const ck_tile::ArgParser& arg_parser)
 
     // permute weight
     ck_tile::HostTensor<BDataType> b_perm_host = shuffle_weight(b_host, prec_w, 1);
+    ck_tile::HostTensor<AScaleDataType> sa_perm_host({K/128, M});
+    shuffle_sa(sa_host, sa_perm_host);
 
     ck_tile::DeviceMem a_buf(a_host);
     ck_tile::DeviceMem b_buf(b_perm_host); // b_host -> b_perm_host
@@ -506,6 +531,30 @@ bool run(const ck_tile::ArgParser& arg_parser)
                 }
 
                 file << ck_tile::type_convert<float>(sa_host.mData[idx]) << ", ";
+            }
+        }
+
+        file.close();
+    }
+    // sa_shuffle
+    {
+        std::ofstream file("ff_scale_a_shuffle_host.txt");
+        int X = static_cast<int>(M);
+        int Y = static_cast<int>(K / 128);
+        file << " [sa_perm_host]: Row = " << Y << ", Col = " << X << std::endl;
+
+        for(int y = 0; y < Y; y++)
+        {
+            file << "\n ========== row : [" << y << " / " << Y << "] ==========";
+            for(int x = 0; x < X; x++)
+            {
+                int idx = X * y + x;
+                if(x % 16 == 0)
+                {
+                    file << "\n [" << x << " : " << x + 15 << " ]: ";
+                }
+
+                file << ck_tile::type_convert<float>(sa_perm_host.mData[idx]) << ", ";
             }
         }
 
