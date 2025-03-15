@@ -205,7 +205,7 @@ float flatmm_uk(flatmm_uk_traits t, flatmm_uk_args a, const ck_tile::stream_conf
                          float,
                          float,
                          float,
-                         S<128, 128, 128, 128>,  // tile BlockTIle
+                         S<128, 256, 128, 128>,  // tile BlockTIle
                          S<1, 4, 1>,            // block
                          S<16, 16, 32>          // mfma
                          >;
