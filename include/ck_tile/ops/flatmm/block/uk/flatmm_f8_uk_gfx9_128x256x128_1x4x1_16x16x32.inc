@@ -772,37 +772,37 @@
     // PREFETCH PANG =====================================================================
     // A0: vmem -> lds
     " s_add_u32     m0,  %[s_a_vm_lds_m0], %[n_a_lds_pingpang_sz] * 0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr0],  s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr0],  s[16:19], 0 offen lds \n" // (A0)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr1],  s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr1],  s[16:19], 0 offen lds \n" // (A0)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr2],  s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr2],  s[16:19], 0 offen lds \n" // (A0)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr3],  s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr3],  s[16:19], 0 offen lds \n" // (A0)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr4],  s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr4],  s[16:19], 0 offen lds \n" // (A0)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr5],  s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr5],  s[16:19], 0 offen lds \n" // (A0)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr6],  s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr6],  s[16:19], 0 offen lds \n" // (A0)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr7],  s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr7],  s[16:19], 0 offen lds \n" // (A0)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr8],  s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr8],  s[16:19], 0 offen lds \n" // (A0)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr9],  s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr9],  s[16:19], 0 offen lds \n" // (A0)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr10], s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr10], s[16:19], 0 offen lds \n" // (A0)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr11], s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr11], s[16:19], 0 offen lds \n" // (A0)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr12], s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr12], s[16:19], 0 offen lds \n" // (A0)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr13], s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr13], s[16:19], 0 offen lds \n" // (A0)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr14], s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr14], s[16:19], 0 offen lds \n" // (A0)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr15], s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr15], s[16:19], 0 offen lds \n" // (A0)vmem -> lds
     " s_waitcnt vmcnt(0) \n"
     " s_barrier          \n"
     
@@ -1223,37 +1223,37 @@
     // PREFETCH PING =====================================================================
     // A1: vmem -> lds
     " s_add_u32     m0,  %[s_a_vm_lds_m0], %[n_a_lds_pingpang_sz] * 1 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr0],  s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr0],  s[16:19], 0 offen lds \n" // (A1)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr1],  s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr1],  s[16:19], 0 offen lds \n" // (A1)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr2],  s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr2],  s[16:19], 0 offen lds \n" // (A1)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr3],  s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr3],  s[16:19], 0 offen lds \n" // (A1)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr4],  s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr4],  s[16:19], 0 offen lds \n" // (A1)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr5],  s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr5],  s[16:19], 0 offen lds \n" // (A1)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr6],  s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr6],  s[16:19], 0 offen lds \n" // (A1)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr7],  s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr7],  s[16:19], 0 offen lds \n" // (A1)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr8],  s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr8],  s[16:19], 0 offen lds \n" // (A1)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr9],  s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr9],  s[16:19], 0 offen lds \n" // (A1)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr10], s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr10], s[16:19], 0 offen lds \n" // (A1)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr11], s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr11], s[16:19], 0 offen lds \n" // (A1)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr12], s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr12], s[16:19], 0 offen lds \n" // (A1)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr13], s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr13], s[16:19], 0 offen lds \n" // (A1)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr14], s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr14], s[16:19], 0 offen lds \n" // (A1)vmem -> lds
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr15], s[16:19], 0 offen lds \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr15], s[16:19], 0 offen lds \n" // (A1)vmem -> lds
     " s_waitcnt vmcnt(0) \n"
     " s_barrier          \n"
     
@@ -1831,43 +1831,9 @@
 #pragma region LOOP_1
     
     " s_waitcnt lgkmcnt(0) \n"
-    " s_waitcnt vmcnt(0)   \n"
-    " s_barrier            \n"
-
-    // PREFETCH PANG =====================================================================
-    // A0: vmem -> lds
-    " s_add_u32     m0,  %[s_a_vm_lds_m0], %[n_a_lds_pingpang_sz] * 0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr0],  s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr1],  s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr2],  s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr3],  s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr4],  s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr5],  s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr6],  s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr7],  s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr8],  s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr9],  s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr10], s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr11], s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr12], s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr13], s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr14], s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr15], s[16:19], 0 offen lds \n"
+    " s_waitcnt vmcnt(16)   \n"
+    //" s_barrier            \n"
+    " s_add_u32 m0,  %[s_a_vm_lds_m0], %[n_a_lds_pingpang_sz] * 0 \n"
     
     // MFMA PING =========================================================================
     " s_load_dwordx2 s[84:85], s[28:29], 0 \n" // scale b1
@@ -2045,6 +2011,8 @@
     _UK_MFMA_ " v[60:63], acc[12:13], acc[124:125], v[60:63] \n"
     " v_fmac_f32 %[v_c_14z], v58, v231 \n"
     _UK_MFMA_ " v[60:63], acc[14:15], acc[126:127], v[60:63] \n"
+    " s_waitcnt vmcnt(0)   \n"
+    " s_barrier            \n"
     " v_fmac_f32 %[v_c_14w], v59, v231 \n"
     // ===================================================================================
     // C: [0~15]M * [128~191]N -----------------------------------------------------------
@@ -2052,6 +2020,8 @@
     " ds_read_b128  acc[128:131], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 0 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [0~15]M    * [0~63]K
     " v_fmac_f32 %[v_c_15x], v60, v231 \n"
     _UK_MFMA_ " v[56:59], acc[34:35], acc[66:67], v[56:59] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr0],  s[16:19], 0 offen lds \n" // (A0)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_15y], v61, v231 \n"
     _UK_MFMA_ " v[56:59], acc[36:37], acc[68:69], v[56:59] \n"
     " v_fmac_f32 %[v_c_15z], v62, v231 \n"
@@ -2062,6 +2032,8 @@
     " ds_read_b128  acc[132:135], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 0 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [0~15]M    * [64~127]K
     " v_fmac_f32 %[v_c_16x], v56, v240 \n"
     _UK_MFMA_ " v[60:63], acc[42:43], acc[66:67], v[60:63] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr1],  s[16:19], 0 offen lds \n" // (A0)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_16y], v57, v240 \n"
     _UK_MFMA_ " v[60:63], acc[44:45], acc[68:69], v[60:63] \n"
     " v_fmac_f32 %[v_c_16z], v58, v240 \n"
@@ -2072,6 +2044,8 @@
     " ds_read_b128  acc[136:139], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 1 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [16~31]M   * [0~63]K
     " v_fmac_f32 %[v_c_17x], v60, v240 \n"
     _UK_MFMA_ " v[56:59], acc[34:35], acc[74:75], v[56:59] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr2],  s[16:19], 0 offen lds \n" // (A0)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_17y], v61, v240 \n"
     _UK_MFMA_ " v[56:59], acc[36:37], acc[76:77], v[56:59] \n"
     " v_fmac_f32 %[v_c_17z], v62, v240 \n"
@@ -2082,6 +2056,8 @@
     " ds_read_b128  acc[140:143], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 1 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [16~31]M   * [64~127]K
     " v_fmac_f32 %[v_c_18x], v56, v241 \n"
     _UK_MFMA_ " v[60:63], acc[42:43], acc[74:75], v[60:63] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr3],  s[16:19], 0 offen lds \n" // (A0)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_18y], v57, v241 \n"
     _UK_MFMA_ " v[60:63], acc[44:45], acc[76:77], v[60:63] \n"
     " v_fmac_f32 %[v_c_18z], v58, v241 \n"
@@ -2092,6 +2068,8 @@
     " ds_read_b128  acc[144:147], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 2 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [32~47]M   * [0~63]K
     " v_fmac_f32 %[v_c_19x], v60, v241 \n"
     _UK_MFMA_ " v[56:59], acc[34:35], acc[82:83], v[56:59] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr4],  s[16:19], 0 offen lds \n" // (A0)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_19y], v61, v241 \n"
     _UK_MFMA_ " v[56:59], acc[36:37], acc[84:85], v[56:59] \n"
     " v_fmac_f32 %[v_c_19z], v62, v241 \n"
@@ -2102,6 +2080,8 @@
     " ds_read_b128  acc[148:151], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 2 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [32~47]M   * [64~127]K
     " v_fmac_f32 %[v_c_20x], v56, v242 \n"
     _UK_MFMA_ " v[60:63], acc[42:43], acc[82:83], v[60:63] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr5],  s[16:19], 0 offen lds \n" // (A0)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_20y], v57, v242 \n"
     _UK_MFMA_ " v[60:63], acc[44:45], acc[84:85], v[60:63] \n"
     " v_fmac_f32 %[v_c_20z], v58, v242 \n"
@@ -2112,6 +2092,8 @@
     " ds_read_b128  acc[152:155], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 3 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [48~63]M   * [0~63]K
     " v_fmac_f32 %[v_c_21x], v60, v242 \n"
     _UK_MFMA_ " v[56:59], acc[34:35], acc[90:91], v[56:59] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr6],  s[16:19], 0 offen lds \n" // (A0)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_21y], v61, v242 \n"
     _UK_MFMA_ " v[56:59], acc[36:37], acc[92:93], v[56:59] \n"
     " v_fmac_f32 %[v_c_21z], v62, v242 \n"
@@ -2122,6 +2104,8 @@
     " ds_read_b128  acc[156:159], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 3 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [48~63]M   * [64~127]K
     " v_fmac_f32 %[v_c_22x], v56, v243 \n"
     _UK_MFMA_ " v[60:63], acc[42:43], acc[90:91], v[60:63] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr7],  s[16:19], 0 offen lds \n" // (A0)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_22y], v57, v243 \n"
     _UK_MFMA_ " v[60:63], acc[44:45], acc[92:93], v[60:63] \n"
     " v_fmac_f32 %[v_c_22z], v58, v243 \n"
@@ -2132,6 +2116,8 @@
     " ds_read_b128  acc[160:163], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 4 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [64~79]M   * [0~63]K
     " v_fmac_f32 %[v_c_23x], v60, v243 \n"
     _UK_MFMA_ " v[56:59], acc[34:35], acc[98:99],   v[56:59] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr8],  s[16:19], 0 offen lds \n" // (A0)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_23y], v61, v243 \n"
     _UK_MFMA_ " v[56:59], acc[36:37], acc[100:101], v[56:59] \n"
     " v_fmac_f32 %[v_c_23z], v62, v243 \n"
@@ -2142,6 +2128,8 @@
     " ds_read_b128  acc[164:167], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 4 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [64~79]M   * [64~127]K
     " v_fmac_f32 %[v_c_24x], v56, v244 \n"
     _UK_MFMA_ " v[60:63], acc[42:43], acc[98:99],   v[60:63] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr9],  s[16:19], 0 offen lds \n" // (A0)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_24y], v57, v244 \n"
     _UK_MFMA_ " v[60:63], acc[44:45], acc[100:101], v[60:63] \n"
     " v_fmac_f32 %[v_c_24z], v58, v244 \n"
@@ -2152,6 +2140,8 @@
     " ds_read_b128  acc[168:171], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 5 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [80~95]M   * [0~63]K
     " v_fmac_f32 %[v_c_25x], v60, v244 \n"
     _UK_MFMA_ " v[56:59], acc[34:35], acc[106:107], v[56:59] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr10], s[16:19], 0 offen lds \n" // (A0)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_25y], v61, v244 \n"
     _UK_MFMA_ " v[56:59], acc[36:37], acc[108:109], v[56:59] \n"
     " v_fmac_f32 %[v_c_25z], v62, v244 \n"
@@ -2162,6 +2152,8 @@
     " ds_read_b128  acc[172:175], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 5 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [80~95]M   * [64~127]K
     " v_fmac_f32 %[v_c_26x], v56, v245 \n"
     _UK_MFMA_ " v[60:63], acc[42:43], acc[106:107], v[60:63] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr11], s[16:19], 0 offen lds \n" // (A0)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_26y], v57, v245 \n"
     _UK_MFMA_ " v[60:63], acc[44:45], acc[108:109], v[60:63] \n"
     " v_fmac_f32 %[v_c_26z], v58, v245 \n"
@@ -2172,6 +2164,8 @@
     " ds_read_b128  acc[176:179], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 6 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [96~111]M  * [0~63]K
     " v_fmac_f32 %[v_c_27x], v60, v245 \n"
     _UK_MFMA_ " v[56:59], acc[34:35], acc[114:115], v[56:59] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr12], s[16:19], 0 offen lds \n" // (A0)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_27y], v61, v245 \n"
     _UK_MFMA_ " v[56:59], acc[36:37], acc[116:117], v[56:59] \n"
     " v_fmac_f32 %[v_c_27z], v62, v245 \n"
@@ -2182,6 +2176,8 @@
     " ds_read_b128  acc[180:183], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 6 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [96~111]M  * [64~128]K
     " v_fmac_f32 %[v_c_28x], v56, v246 \n"
     _UK_MFMA_ " v[60:63], acc[42:43], acc[114:115], v[60:63] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr13], s[16:19], 0 offen lds \n" // (A0)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_28y], v57, v246 \n"
     _UK_MFMA_ " v[60:63], acc[44:45], acc[116:117], v[60:63] \n"
     " v_fmac_f32 %[v_c_28z], v58, v246 \n"
@@ -2192,6 +2188,8 @@
     " ds_read_b128  acc[184:187], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 7 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [112~127]M * [0~63]K
     " v_fmac_f32 %[v_c_29x], v60, v246 \n"
     _UK_MFMA_ " v[56:59], acc[34:35], acc[122:123], v[56:59] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr14], s[16:19], 0 offen lds \n" // (A0)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_29y], v61, v246 \n"
     _UK_MFMA_ " v[56:59], acc[36:37], acc[124:125], v[56:59] \n"
     " v_fmac_f32 %[v_c_29z], v62, v246 \n"
@@ -2202,6 +2200,7 @@
     " ds_read_b128  acc[188:191], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 7 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [112~127]M * [64~127]K
     " v_fmac_f32 %[v_c_30x], v56, v247 \n"
     _UK_MFMA_ " v[60:63], acc[42:43], acc[122:123], v[60:63] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr15], s[16:19], 0 offen lds \n" // (A0)vmem -> lds
     " v_fmac_f32 %[v_c_30y], v57, v247 \n"
     _UK_MFMA_ " v[60:63], acc[44:45], acc[124:125], v[60:63] \n"
     " v_fmac_f32 %[v_c_30z], v58, v247 \n"
@@ -2211,7 +2210,7 @@
     " v_fmac_f32 %[v_c_31x], v60, v247 \n"
     " v_fmac_f32 %[v_c_31y], v61, v247 \n"
     " v_fmac_f32 %[v_c_31z], v62, v247 \n"
-    " v_fmac_f32 %[v_c_31w], v63, v247 \n"    
+    " v_fmac_f32 %[v_c_31w], v63, v247 \n"
     // -----------------------------------------------------------------------------------
     // forloop
     " s_sub_i32     %[s_loop_cnt], %[s_loop_cnt], 1 \n"
@@ -2242,43 +2241,9 @@
 #pragma region LOOP_2
     
     " s_waitcnt lgkmcnt(0) \n"
-    " s_waitcnt vmcnt(0)   \n"
-    " s_barrier            \n"
-
-    // PREFETCH PING =====================================================================
-    // A1: vmem -> lds
-    " s_add_u32     m0,  %[s_a_vm_lds_m0], %[n_a_lds_pingpang_sz] * 1 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr0],  s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr1],  s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr2],  s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr3],  s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr4],  s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr5],  s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr6],  s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr7],  s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr8],  s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr9],  s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr10], s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr11], s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr12], s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr13], s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr14], s[16:19], 0 offen lds \n"
-    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
-    " buffer_load_dword  %[v_a_vm_ld_addr15], s[16:19], 0 offen lds \n"
+    " s_waitcnt vmcnt(16)   \n"
+    //" s_barrier            \n"
+    " s_add_u32 m0,  %[s_a_vm_lds_m0], %[n_a_lds_pingpang_sz] * 1 \n"
     
     // MFMA PANG =========================================================================
     " s_load_dwordx2 s[30:31], s[28:29],  0 \n" // scale b0
@@ -2456,6 +2421,8 @@
     _UK_MFMA_ " v[60:63], acc[28:29], acc[188:189], v[60:63] \n"
     " v_fmac_f32 %[v_c_14z], v58, v239 \n"
     _UK_MFMA_ " v[60:63], acc[30:31], acc[190:191], v[60:63] \n"
+    " s_waitcnt vmcnt(0)   \n"
+    " s_barrier            \n"
     " v_fmac_f32 %[v_c_14w], v59, v239 \n"
     // ===================================================================================
     // C: [0~15]M * [128~191]N -----------------------------------------------------------
@@ -2463,6 +2430,8 @@
     " ds_read_b128  acc[64:67],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 0 + %[n_a_lds_rd_offset_0] * 0 \n" // (A0)lds->accvgpr: [0~15]M    * [0~63]K
     " v_fmac_f32 %[v_c_15x], v60, v239 \n"
     _UK_MFMA_ " v[56:59], acc[50:51], acc[130:131], v[56:59] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr0],  s[16:19], 0 offen lds \n" // (A1)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_15y], v61, v239 \n"
     _UK_MFMA_ " v[56:59], acc[52:53], acc[132:133], v[56:59] \n"
     " v_fmac_f32 %[v_c_15z], v62, v239 \n"
@@ -2473,6 +2442,8 @@
     " ds_read_b128  acc[68:71],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 0 + %[n_a_lds_rd_offset_0] * 1 \n" // (A0)lds->accvgpr: [0~15]M    * [64~127]K
     " v_fmac_f32 %[v_c_16x], v56, v248 \n"
     _UK_MFMA_ " v[60:63], acc[58:59], acc[130:131], v[60:63] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr1],  s[16:19], 0 offen lds \n" // (A1)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_16y], v57, v248 \n"
     _UK_MFMA_ " v[60:63], acc[60:61], acc[132:133], v[60:63] \n"
     " v_fmac_f32 %[v_c_16z], v58, v248 \n"
@@ -2483,6 +2454,8 @@
     " ds_read_b128  acc[72:75],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 1 + %[n_a_lds_rd_offset_0] * 0 \n" // (A0)lds->accvgpr: [16~31]M   * [0~63]K
     " v_fmac_f32 %[v_c_17x], v60, v248 \n"
     _UK_MFMA_ " v[56:59], acc[50:51], acc[138:139], v[56:59] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr2],  s[16:19], 0 offen lds \n" // (A1)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_17y], v61, v248 \n"
     _UK_MFMA_ " v[56:59], acc[52:53], acc[140:141], v[56:59] \n"
     " v_fmac_f32 %[v_c_17z], v62, v248 \n"
@@ -2493,6 +2466,8 @@
     " ds_read_b128  acc[76:79],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 1 + %[n_a_lds_rd_offset_0] * 1 \n" // (A0)lds->accvgpr: [16~31]M   * [64~127]K
     " v_fmac_f32 %[v_c_18x], v56, v249 \n"
     _UK_MFMA_ " v[60:63], acc[58:59], acc[138:139], v[60:63] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr3],  s[16:19], 0 offen lds \n" // (A1)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_18y], v57, v249 \n"
     _UK_MFMA_ " v[60:63], acc[60:61], acc[140:141], v[60:63] \n"
     " v_fmac_f32 %[v_c_18z], v58, v249 \n"
@@ -2503,6 +2478,8 @@
     " ds_read_b128  acc[80:83],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 2 + %[n_a_lds_rd_offset_0] * 0 \n" // (A0)lds->accvgpr: [32~47]M   * [0~63]K
     " v_fmac_f32 %[v_c_19x], v60, v249 \n"
     _UK_MFMA_ " v[56:59], acc[50:51], acc[146:147], v[56:59] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr4],  s[16:19], 0 offen lds \n" // (A1)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_19y], v61, v249 \n"
     _UK_MFMA_ " v[56:59], acc[52:53], acc[148:149], v[56:59] \n"
     " v_fmac_f32 %[v_c_19z], v62, v249 \n"
@@ -2513,6 +2490,8 @@
     " ds_read_b128  acc[84:87],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 2 + %[n_a_lds_rd_offset_0] * 1 \n" // (A0)lds->accvgpr: [32~47]M   * [64~127]K
     " v_fmac_f32 %[v_c_20x], v56, v250 \n"
     _UK_MFMA_ " v[60:63], acc[58:59], acc[146:147], v[60:63] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr5],  s[16:19], 0 offen lds \n" // (A1)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_20y], v57, v250 \n"
     _UK_MFMA_ " v[60:63], acc[60:61], acc[148:149], v[60:63] \n"
     " v_fmac_f32 %[v_c_20z], v58, v250 \n"
@@ -2523,6 +2502,8 @@
     " ds_read_b128  acc[88:91],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 3 + %[n_a_lds_rd_offset_0] * 0 \n" // (A0)lds->accvgpr: [48~63]M   * [0~63]K
     " v_fmac_f32 %[v_c_21x], v60, v250 \n"
     _UK_MFMA_ " v[56:59], acc[50:51], acc[154:155], v[56:59] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr6],  s[16:19], 0 offen lds \n" // (A1)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_21y], v61, v250 \n"
     _UK_MFMA_ " v[56:59], acc[52:53], acc[156:157], v[56:59] \n"
     " v_fmac_f32 %[v_c_21z], v62, v250 \n"
@@ -2533,6 +2514,8 @@
     " ds_read_b128  acc[92:95],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 3 + %[n_a_lds_rd_offset_0] * 1 \n" // (A0)lds->accvgpr: [48~63]M   * [64~127]K
     " v_fmac_f32 %[v_c_22x], v56, v251 \n"
     _UK_MFMA_ " v[60:63], acc[58:59], acc[154:155], v[60:63] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr7],  s[16:19], 0 offen lds \n" // (A1)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_22y], v57, v251 \n"
     _UK_MFMA_ " v[60:63], acc[60:61], acc[156:157], v[60:63] \n"
     " v_fmac_f32 %[v_c_22z], v58, v251 \n"
@@ -2543,6 +2526,8 @@
     " ds_read_b128  acc[96:99],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 4 + %[n_a_lds_rd_offset_0] * 0 \n" // (A0)lds->accvgpr: [64~79]M   * [0~63]K
     " v_fmac_f32 %[v_c_23x], v60, v251 \n"
     _UK_MFMA_ " v[56:59], acc[50:51], acc[162:163], v[56:59] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr8],  s[16:19], 0 offen lds \n" // (A1)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_23y], v61, v251 \n"
     _UK_MFMA_ " v[56:59], acc[52:53], acc[164:165], v[56:59] \n"
     " v_fmac_f32 %[v_c_23z], v62, v251 \n"
@@ -2553,6 +2538,8 @@
     " ds_read_b128  acc[100:103], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 4 + %[n_a_lds_rd_offset_0] * 1 \n" // (A0)lds->accvgpr: [64~79]M   * [64~127]K
     " v_fmac_f32 %[v_c_24x], v56, v252 \n"
     _UK_MFMA_ " v[60:63], acc[58:59], acc[162:163], v[60:63] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr9],  s[16:19], 0 offen lds \n" // (A1)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_24y], v57, v252 \n"
     _UK_MFMA_ " v[60:63], acc[60:61], acc[164:165], v[60:63] \n"
     " v_fmac_f32 %[v_c_24z], v58, v252 \n"
@@ -2563,6 +2550,8 @@
     " ds_read_b128  acc[104:107], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 5 + %[n_a_lds_rd_offset_0] * 0 \n" // (A0)lds->accvgpr: [80~95]M   * [0~63]K
     " v_fmac_f32 %[v_c_25x], v60, v252 \n"
     _UK_MFMA_ " v[56:59], acc[50:51], acc[170:171], v[56:59] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr10], s[16:19], 0 offen lds \n" // (A1)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_25y], v61, v252 \n"
     _UK_MFMA_ " v[56:59], acc[52:53], acc[172:173], v[56:59] \n"
     " v_fmac_f32 %[v_c_25z], v62, v252 \n"
@@ -2573,6 +2562,8 @@
     " ds_read_b128  acc[108:111], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 5 + %[n_a_lds_rd_offset_0] * 1 \n" // (A0)lds->accvgpr: [80~95]M   * [64~127]K
     " v_fmac_f32 %[v_c_26x], v56, v253 \n"
     _UK_MFMA_ " v[60:63], acc[58:59], acc[170:171], v[60:63] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr11], s[16:19], 0 offen lds \n" // (A1)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_26y], v57, v253 \n"
     _UK_MFMA_ " v[60:63], acc[60:61], acc[172:173], v[60:63] \n"
     " v_fmac_f32 %[v_c_26z], v58, v253 \n"
@@ -2583,6 +2574,8 @@
     " ds_read_b128  acc[112:115], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 6 + %[n_a_lds_rd_offset_0] * 0 \n" // (A0)lds->accvgpr: [96~111]M  * [0~63]K
     " v_fmac_f32 %[v_c_27x], v60, v253 \n"
     _UK_MFMA_ " v[56:59], acc[50:51], acc[178:179], v[56:59] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr12], s[16:19], 0 offen lds \n" // (A1)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_27y], v61, v253 \n"
     _UK_MFMA_ " v[56:59], acc[52:53], acc[180:181], v[56:59] \n"
     " v_fmac_f32 %[v_c_27z], v62, v253 \n"
@@ -2593,6 +2586,8 @@
     " ds_read_b128  acc[116:119], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 6 + %[n_a_lds_rd_offset_0] * 1 \n" // (A0)lds->accvgpr: [96~111]M  * [64~128]K
     " v_fmac_f32 %[v_c_28x], v56, v254 \n"
     _UK_MFMA_ " v[60:63], acc[58:59], acc[178:179], v[60:63] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr13], s[16:19], 0 offen lds \n" // (A1)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_28y], v57, v254 \n"
     _UK_MFMA_ " v[60:63], acc[60:61], acc[180:181], v[60:63] \n"
     " v_fmac_f32 %[v_c_28z], v58, v254 \n"
@@ -2603,6 +2598,8 @@
     " ds_read_b128  acc[120:123], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 7 + %[n_a_lds_rd_offset_0] * 0 \n" // (A0)lds->accvgpr: [112~127]M * [0~63]K
     " v_fmac_f32 %[v_c_29x], v60, v254 \n"
     _UK_MFMA_ " v[56:59], acc[50:51], acc[186:187], v[56:59] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr14], s[16:19], 0 offen lds \n" // (A1)vmem -> lds
+    " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " v_fmac_f32 %[v_c_29y], v61, v254 \n"
     _UK_MFMA_ " v[56:59], acc[52:53], acc[188:189], v[56:59] \n"
     " v_fmac_f32 %[v_c_29z], v62, v254 \n"
@@ -2613,6 +2610,7 @@
     " ds_read_b128  acc[124:127], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 7 + %[n_a_lds_rd_offset_0] * 1 \n" // (A0)lds->accvgpr: [112~127]M * [64~127]K
     " v_fmac_f32 %[v_c_30x], v56, v255 \n"
     _UK_MFMA_ " v[60:63], acc[58:59], acc[186:187], v[60:63] \n"
+    " buffer_load_dword  %[v_a_vm_ld_addr15], s[16:19], 0 offen lds \n" // (A1)vmem -> lds
     " v_fmac_f32 %[v_c_30y], v57, v255 \n"
     _UK_MFMA_ " v[60:63], acc[60:61], acc[188:189], v[60:63] \n"
     " v_fmac_f32 %[v_c_30z], v58, v255 \n"
