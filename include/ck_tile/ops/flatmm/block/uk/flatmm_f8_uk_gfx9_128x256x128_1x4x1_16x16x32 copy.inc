@@ -611,7 +611,7 @@
 #endif
 
 // pipeline w/o instr opt debug
-#if 1
+#if 0
 #pragma region PREFETCH
     // PREFETCH PING =====================================================================
     // prefetch A (ping) -----------------------------------------------------------------
@@ -1701,7 +1701,7 @@
 #pragma endregion
 #endif
 
-#if 0
+#if 1
 #if _A_VM_LDS_
 #pragma region PREFETCH
     // A0: vmem -> lds

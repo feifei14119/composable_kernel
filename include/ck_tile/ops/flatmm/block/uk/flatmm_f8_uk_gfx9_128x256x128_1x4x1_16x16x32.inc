@@ -881,25 +881,25 @@
     
     // move to ping ----------------------------------------------------------------------
     // move to next A
-    "  s_cmp_gt_i32  %[s_loop_cnt] 2      \n"
-    "s_cselect_b32 s86, %[s_tile_os_a], 0 \n"
-    "s_add_u32     s16, s86, s16          \n"
-    "s_addc_u32    s17, 0, s17            \n"
+    " s_cmp_gt_i32  %[s_loop_cnt] 2        \n"
+    " s_cselect_b32 s86, %[s_tile_os_a], 0 \n"
+    " s_add_u32     s16, s86, s16          \n"
+    " s_addc_u32    s17, 0, s17            \n"
     // move to next B
-    "  s_cmp_gt_i32  %[s_loop_cnt] 2      \n"
-    "s_cselect_b32 s86, %[s_tile_os_b], 0 \n"
-    "s_add_u32     s20, s86, s20          \n"
-    "s_addc_u32    s21, 0, s21            \n"
+    " s_cmp_gt_i32  %[s_loop_cnt] 2        \n"
+    " s_cselect_b32 s86, %[s_tile_os_b], 0 \n"
+    " s_add_u32     s20, s86, s20          \n"
+    " s_addc_u32    s21, 0, s21            \n"
     // move to next SA
-    "  s_cmp_gt_i32  %[s_loop_cnt] 2      \n"
-    "s_cselect_b32 s86, %[s_tile_sa], 0   \n"
-    "s_add_u32     s24, s86, s24          \n"
-    "s_addc_u32    s25, 0, s25            \n"
+    " s_cmp_gt_i32  %[s_loop_cnt] 2        \n"
+    " s_cselect_b32 s86, %[s_tile_sa], 0   \n"
+    " s_add_u32     s24, s86, s24          \n"
+    " s_addc_u32    s25, 0, s25            \n"
     // move to next SB
-    "  s_cmp_gt_i32  %[s_loop_cnt] 2      \n"
-    "s_cselect_b32 s86, %[s_tile_sb], 0   \n"
-    "s_add_u32     s28, s86, s28          \n"
-    "s_addc_u32    s29, 0, s29            \n"
+    " s_cmp_gt_i32  %[s_loop_cnt] 2        \n"
+    " s_cselect_b32 s86, %[s_tile_sb], 0   \n"
+    " s_add_u32     s28, s86, s28          \n"
+    " s_addc_u32    s29, 0, s29            \n"
     // MFMA PING =========================================================================
     // C: [0~15]M * [0~63]N --------------------------------------------------------------
     _UK_MFMA_ " v[56:59], acc[0:1],   acc[64:65], 0        \n"
@@ -1223,9 +1223,10 @@
     " v_fmac_f32 %[v_c_31z], v62, v247 \n"
     " v_fmac_f32 %[v_c_31w], v63, v247 \n"
     // -----------------------------------------------------------------------------------
-    "  s_sub_i32     %[s_loop_cnt], %[s_loop_cnt], 1 \n"
-    "  s_cmp_gt_i32  %[s_loop_cnt] 0                 \n"
-    "  s_cbranch_scc0 L_end%=                        \n"
+    // forloop
+    " s_sub_i32     %[s_loop_cnt], %[s_loop_cnt], 1 \n"
+    " s_cmp_gt_i32  %[s_loop_cnt] 0                 \n"
+    " s_cbranch_scc0 L_end%=                        \n"
 #pragma endregion
 
 #pragma region LOOP_2
@@ -1351,25 +1352,25 @@
 
     // move to pang ----------------------------------------------------------------------
     // move to next A
-    "s_cmp_gt_i32  %[s_loop_cnt] 2        \n"
-    "s_cselect_b32 s86, %[s_tile_os_a], 0 \n"
-    "s_add_u32     s16, s86, s16          \n"
-    "s_addc_u32    s17, 0, s17            \n"
+    " s_cmp_gt_i32  %[s_loop_cnt] 2        \n"
+    " s_cselect_b32 s86, %[s_tile_os_a], 0 \n"
+    " s_add_u32     s16, s86, s16          \n"
+    " s_addc_u32    s17, 0, s17            \n"
     // move to next B
-    "s_cmp_gt_i32  %[s_loop_cnt] 2        \n"
-    "s_cselect_b32 s86, %[s_tile_os_b], 0 \n"
-    "s_add_u32     s20, s86, s20          \n"
-    "s_addc_u32    s21, 0, s21            \n"
+    " s_cmp_gt_i32  %[s_loop_cnt] 2        \n"
+    " s_cselect_b32 s86, %[s_tile_os_b], 0 \n"
+    " s_add_u32     s20, s86, s20          \n"
+    " s_addc_u32    s21, 0, s21            \n"
     // move to next SA
-    "s_cmp_gt_i32  %[s_loop_cnt] 2        \n"
-    "s_cselect_b32 s86, %[s_tile_sa], 0   \n"
-    "s_add_u32     s24, s86, s24          \n"
-    "s_addc_u32    s25, 0, s25            \n"
+    " s_cmp_gt_i32  %[s_loop_cnt] 2        \n"
+    " s_cselect_b32 s86, %[s_tile_sa], 0   \n"
+    " s_add_u32     s24, s86, s24          \n"
+    " s_addc_u32    s25, 0, s25            \n"
     // move to next SB
-    "s_cmp_gt_i32  %[s_loop_cnt] 2        \n"
-    "s_cselect_b32 s86, %[s_tile_sb], 0   \n"
-    "s_add_u32     s28, s86, s28          \n"
-    "s_addc_u32    s29, 0, s29            \n"
+    " s_cmp_gt_i32  %[s_loop_cnt] 2        \n"
+    " s_cselect_b32 s86, %[s_tile_sb], 0   \n"
+    " s_add_u32     s28, s86, s28          \n"
+    " s_addc_u32    s29, 0, s29            \n"
     
     // MFMA PANG =========================================================================
     // C: [0~15]M * [0~63]N --------------------------------------------------------------
@@ -1694,13 +1695,13 @@
     " v_fmac_f32 %[v_c_31z], v62, v255 \n"
     " v_fmac_f32 %[v_c_31w], v63, v255 \n"
     // -----------------------------------------------------------------------------------
-    "  s_sub_i32    %[s_loop_cnt], %[s_loop_cnt], 1 \n"
-    "  s_cmp_gt_i32 %[s_loop_cnt] 0                 \n"
-    "  s_cbranch_scc0 L_end%=   \n"
-    "  s_branch       L_start%= \n"
+    // forloop
+    " s_sub_i32    %[s_loop_cnt], %[s_loop_cnt], 1 \n"
+    " s_cmp_gt_i32 %[s_loop_cnt] 0                 \n"
+    " s_cbranch_scc0 L_end%=   \n"
+    " s_branch       L_start%= \n"
 #pragma endregion
 #endif
-
 
 #if 1
 #pragma region PREFETCH
@@ -1811,25 +1812,25 @@
 
     // move to pang ----------------------------------------------------------------------
     // move to next A
-    "s_cmp_gt_i32  %[s_loop_cnt] 1        \n"
-    "s_cselect_b32 s86, %[s_tile_os_a], 0 \n"
-    "s_add_u32     s16, s86, s16          \n"
-    "s_addc_u32    s17, 0, s17            \n"
+    " s_cmp_gt_i32  %[s_loop_cnt] 1        \n"
+    " s_cselect_b32 s86, %[s_tile_os_a], 0 \n"
+    " s_add_u32     s16, s86, s16          \n"
+    " s_addc_u32    s17, 0, s17            \n"
     // move to next B
-    "s_cmp_gt_i32  %[s_loop_cnt] 1        \n"
-    "s_cselect_b32 s86, %[s_tile_os_b], 0 \n"
-    "s_add_u32     s20, s86, s20          \n"
-    "s_addc_u32    s21, 0, s21            \n"
+    " s_cmp_gt_i32  %[s_loop_cnt] 1        \n"
+    " s_cselect_b32 s86, %[s_tile_os_b], 0 \n"
+    " s_add_u32     s20, s86, s20          \n"
+    " s_addc_u32    s21, 0, s21            \n"
     // move to next SA
-    "s_cmp_gt_i32  %[s_loop_cnt] 1        \n"
-    "s_cselect_b32 s86, %[s_tile_sa], 0   \n"
-    "s_add_u32     s24, s86, s24          \n"
-    "s_addc_u32    s25, 0, s25            \n"
+    " s_cmp_gt_i32  %[s_loop_cnt] 1        \n"
+    " s_cselect_b32 s86, %[s_tile_sa], 0   \n"
+    " s_add_u32     s24, s86, s24          \n"
+    " s_addc_u32    s25, 0, s25            \n"
     // move to next SB
-    "s_cmp_gt_i32  %[s_loop_cnt] 1        \n"
-    "s_cselect_b32 s86, %[s_tile_sb], 0   \n"
-    "s_add_u32     s28, s86, s28          \n"
-    "s_addc_u32    s29, 0, s29            \n"
+    " s_cmp_gt_i32  %[s_loop_cnt] 1        \n"
+    " s_cselect_b32 s86, %[s_tile_sb], 0   \n"
+    " s_add_u32     s28, s86, s28          \n"
+    " s_addc_u32    s29, 0, s29            \n"
 #pragma endregion
 
 "L_start%=: \n"
@@ -1940,27 +1941,6 @@
     " v_mul_f32  v238, v238, v50 \n"
     " v_mul_f32  v239, v239, v50 \n"
     
-    // move to ping ----------------------------------------------------------------------
-    // move to next A
-    "  s_cmp_gt_i32  %[s_loop_cnt] 2      \n"
-    "s_cselect_b32 s86, %[s_tile_os_a], 0 \n"
-    "s_add_u32     s16, s86, s16          \n"
-    "s_addc_u32    s17, 0, s17            \n"
-    // move to next B
-    "  s_cmp_gt_i32  %[s_loop_cnt] 2      \n"
-    "s_cselect_b32 s86, %[s_tile_os_b], 0 \n"
-    "s_add_u32     s20, s86, s20          \n"
-    "s_addc_u32    s21, 0, s21            \n"
-    // move to next SA
-    "  s_cmp_gt_i32  %[s_loop_cnt] 2      \n"
-    "s_cselect_b32 s86, %[s_tile_sa], 0   \n"
-    "s_add_u32     s24, s86, s24          \n"
-    "s_addc_u32    s25, 0, s25            \n"
-    // move to next SB
-    "  s_cmp_gt_i32  %[s_loop_cnt] 2      \n"
-    "s_cselect_b32 s86, %[s_tile_sb], 0   \n"
-    "s_add_u32     s28, s86, s28          \n"
-    "s_addc_u32    s29, 0, s29            \n"
     // MFMA PING =========================================================================
     // C: [0~15]M * [0~63]N --------------------------------------------------------------
     _UK_MFMA_ " v[56:59], acc[0:1],   acc[64:65], 0        \n"
@@ -2253,9 +2233,30 @@
     " v_fmac_f32 %[v_c_31z], v62, v247 \n"
     " v_fmac_f32 %[v_c_31w], v63, v247 \n"
     // -----------------------------------------------------------------------------------
-    "  s_sub_i32     %[s_loop_cnt], %[s_loop_cnt], 1 \n"
-    "  s_cmp_gt_i32  %[s_loop_cnt] 0                 \n"
-    "  s_cbranch_scc0 L_end%=                        \n"
+    // forloop
+    " s_sub_i32     %[s_loop_cnt], %[s_loop_cnt], 1 \n"
+    " s_cmp_gt_i32  %[s_loop_cnt] 0                 \n"
+    " s_cbranch_scc0 L_end%=                        \n"
+    // move to next A
+    " s_cmp_gt_i32  %[s_loop_cnt] 1        \n"
+    " s_cselect_b32 s86, %[s_tile_os_a], 0 \n"
+    " s_add_u32     s16, s86, s16          \n"
+    " s_addc_u32    s17, 0, s17            \n"
+    // move to next B
+    " s_cmp_gt_i32  %[s_loop_cnt] 1        \n"
+    " s_cselect_b32 s86, %[s_tile_os_b], 0 \n"
+    " s_add_u32     s20, s86, s20          \n"
+    " s_addc_u32    s21, 0, s21            \n"
+    // move to next SA
+    " s_cmp_gt_i32  %[s_loop_cnt] 1        \n"
+    " s_cselect_b32 s86, %[s_tile_sa], 0   \n"
+    " s_add_u32     s24, s86, s24          \n"
+    " s_addc_u32    s25, 0, s25            \n"
+    // move to next SB
+    " s_cmp_gt_i32  %[s_loop_cnt] 1        \n"
+    " s_cselect_b32 s86, %[s_tile_sb], 0   \n"
+    " s_add_u32     s28, s86, s28          \n"
+    " s_addc_u32    s29, 0, s29            \n"
 #pragma endregion
 
 #pragma region LOOP_2
@@ -2363,28 +2364,6 @@
     " v_mul_f32  v229, v229, v50 \n"
     " v_mul_f32  v230, v230, v50 \n"
     " v_mul_f32  v231, v231, v50 \n"
-
-    // move to pang ----------------------------------------------------------------------
-    // move to next A
-    "s_cmp_gt_i32  %[s_loop_cnt] 2        \n"
-    "s_cselect_b32 s86, %[s_tile_os_a], 0 \n"
-    "s_add_u32     s16, s86, s16          \n"
-    "s_addc_u32    s17, 0, s17            \n"
-    // move to next B
-    "s_cmp_gt_i32  %[s_loop_cnt] 2        \n"
-    "s_cselect_b32 s86, %[s_tile_os_b], 0 \n"
-    "s_add_u32     s20, s86, s20          \n"
-    "s_addc_u32    s21, 0, s21            \n"
-    // move to next SA
-    "s_cmp_gt_i32  %[s_loop_cnt] 2        \n"
-    "s_cselect_b32 s86, %[s_tile_sa], 0   \n"
-    "s_add_u32     s24, s86, s24          \n"
-    "s_addc_u32    s25, 0, s25            \n"
-    // move to next SB
-    "s_cmp_gt_i32  %[s_loop_cnt] 2        \n"
-    "s_cselect_b32 s86, %[s_tile_sb], 0   \n"
-    "s_add_u32     s28, s86, s28          \n"
-    "s_addc_u32    s29, 0, s29            \n"
     
     // MFMA PANG =========================================================================
     // C: [0~15]M * [0~63]N --------------------------------------------------------------
@@ -2678,10 +2657,31 @@
     " v_fmac_f32 %[v_c_31z], v62, v255 \n"
     " v_fmac_f32 %[v_c_31w], v63, v255 \n"
     // -----------------------------------------------------------------------------------
-    "  s_sub_i32    %[s_loop_cnt], %[s_loop_cnt], 1 \n"
-    "  s_cmp_gt_i32 %[s_loop_cnt] 0                 \n"
-    "  s_cbranch_scc0 L_end%=   \n"
-    "  s_branch       L_start%= \n"
+    // move to next A
+    " s_cmp_gt_i32  %[s_loop_cnt] 2        \n"
+    " s_cselect_b32 s86, %[s_tile_os_a], 0 \n"
+    " s_add_u32     s16, s86, s16          \n"
+    " s_addc_u32    s17, 0, s17            \n"
+    // move to next B
+    " s_cmp_gt_i32  %[s_loop_cnt] 2        \n"
+    " s_cselect_b32 s86, %[s_tile_os_b], 0 \n"
+    " s_add_u32     s20, s86, s20          \n"
+    " s_addc_u32    s21, 0, s21            \n"
+    // move to next SA
+    " s_cmp_gt_i32  %[s_loop_cnt] 2        \n"
+    " s_cselect_b32 s86, %[s_tile_sa], 0   \n"
+    " s_add_u32     s24, s86, s24          \n"
+    " s_addc_u32    s25, 0, s25            \n"
+    // move to next SB
+    " s_cmp_gt_i32  %[s_loop_cnt] 2        \n"
+    " s_cselect_b32 s86, %[s_tile_sb], 0   \n"
+    " s_add_u32     s28, s86, s28          \n"
+    " s_addc_u32    s29, 0, s29            \n"
+    // forloop
+    " s_sub_i32    %[s_loop_cnt], %[s_loop_cnt], 1 \n"
+    " s_cmp_gt_i32 %[s_loop_cnt] 0                 \n"
+    " s_cbranch_scc0 L_end%=   \n"
+    " s_branch       L_start%= \n"
 #pragma endregion
 #endif
 
