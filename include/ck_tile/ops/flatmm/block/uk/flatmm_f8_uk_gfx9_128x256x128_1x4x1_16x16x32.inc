@@ -807,48 +807,47 @@
     " s_barrier          \n"
     
     // A1: lds->accvgpr
-    " ds_read_b128  acc[128:131], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 0 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // [0~15]M    * [0~63]K
-    " ds_read_b128  acc[132:135], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 0 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // [0~15]M    * [64~127]K
-    " ds_read_b128  acc[136:139], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 1 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // [16~31]M   * [0~63]K
-    " ds_read_b128  acc[140:143], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 1 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // [16~31]M   * [64~127]K
-    " ds_read_b128  acc[144:147], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 2 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // [32~47]M   * [0~63]K
-    " ds_read_b128  acc[148:151], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 2 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // [32~47]M   * [64~127]K
-    " ds_read_b128  acc[152:155], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 3 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // [48~63]M   * [0~63]K
-    " ds_read_b128  acc[156:159], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 3 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // [48~63]M   * [64~127]K
-    " ds_read_b128  acc[160:163], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 4 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // [64~79]M   * [0~63]K
-    " ds_read_b128  acc[164:167], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 4 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // [64~79]M   * [64~127]K
-    " ds_read_b128  acc[168:171], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 5 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // [80~95]M   * [0~63]K
-    " ds_read_b128  acc[172:175], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 5 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // [80~95]M   * [64~127]K
-    " ds_read_b128  acc[176:179], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 6 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // [96~111]M  * [0~63]K
-    " ds_read_b128  acc[180:183], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 6 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // [96~111]M  * [64~128]K
-    " ds_read_b128  acc[184:187], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 7 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // [112~127]M * [0~63]K
-    " ds_read_b128  acc[188:191], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 7 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // [112~127]M * [64~127]K
+    " ds_read_b128  acc[128:131], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 0 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [0~15]M    * [0~63]K
+    " ds_read_b128  acc[132:135], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 0 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [0~15]M    * [64~127]K
+    " ds_read_b128  acc[136:139], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 1 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [16~31]M   * [0~63]K
+    " ds_read_b128  acc[140:143], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 1 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [16~31]M   * [64~127]K
+    " ds_read_b128  acc[144:147], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 2 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [32~47]M   * [0~63]K
+    " ds_read_b128  acc[148:151], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 2 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [32~47]M   * [64~127]K
+    " ds_read_b128  acc[152:155], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 3 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [48~63]M   * [0~63]K
+    " ds_read_b128  acc[156:159], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 3 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [48~63]M   * [64~127]K
+    " ds_read_b128  acc[160:163], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 4 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [64~79]M   * [0~63]K
+    " ds_read_b128  acc[164:167], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 4 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [64~79]M   * [64~127]K
+    " ds_read_b128  acc[168:171], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 5 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [80~95]M   * [0~63]K
+    " ds_read_b128  acc[172:175], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 5 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [80~95]M   * [64~127]K
+    " ds_read_b128  acc[176:179], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 6 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [96~111]M  * [0~63]K
+    " ds_read_b128  acc[180:183], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 6 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [96~111]M  * [64~128]K
+    " ds_read_b128  acc[184:187], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 7 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [112~127]M * [0~63]K
+    " ds_read_b128  acc[188:191], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 7 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [112~127]M * [64~127]K
     " s_waitcnt lgkmcnt(0)                                                                                                                      \n"
 
     // B1: vmem->acc
-    " buffer_load_dwordx4  acc[16:19], %[v_os_b0], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // [0~63]N   * [0~63]K
-    " buffer_load_dwordx4  acc[20:23], %[v_os_b0], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // [0~63]N   * [64~127]K
-    " buffer_load_dwordx4  acc[24:27], %[v_os_b1], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // [64~127]N * [0~63]K
-    " buffer_load_dwordx4  acc[28:31], %[v_os_b1], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // [64~127]N * [64~127]K
-
-    " buffer_load_dwordx4  acc[48:51], %[v_os_b2], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // [128~191]N * [0~63]K
-    " buffer_load_dwordx4  acc[52:55], %[v_os_b2], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // [128~191]N * [64~127]K
-    " buffer_load_dwordx4  acc[56:59], %[v_os_b3], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // [192~255]N * [0~63]K
-    " buffer_load_dwordx4  acc[60:63], %[v_os_b3], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // [192~255]N * [64~127]K
+    " buffer_load_dwordx4  acc[16:19], %[v_os_b0], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // (B1)vmem->acc: [0~63]N   * [0~63]K
+    " buffer_load_dwordx4  acc[20:23], %[v_os_b0], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // (B1)vmem->acc: [0~63]N   * [64~127]K
+    " buffer_load_dwordx4  acc[24:27], %[v_os_b1], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // (B1)vmem->acc: [64~127]N * [0~63]K
+    " buffer_load_dwordx4  acc[28:31], %[v_os_b1], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // (B1)vmem->acc: [64~127]N * [64~127]K
+    " buffer_load_dwordx4  acc[48:51], %[v_os_b2], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // (B1)vmem->acc: [128~191]N * [0~63]K
+    " buffer_load_dwordx4  acc[52:55], %[v_os_b2], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // (B1)vmem->acc: [128~191]N * [64~127]K
+    " buffer_load_dwordx4  acc[56:59], %[v_os_b3], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // (B1)vmem->acc: [192~255]N * [0~63]K
+    " buffer_load_dwordx4  acc[60:63], %[v_os_b3], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // (B1)vmem->acc: [192~255]N * [64~127]K
     " s_waitcnt vmcnt(0) \n"
 
     // scale a1
-    " buffer_load_dword    v232, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 0 \n" // [0~15]M
-    " buffer_load_dword    v233, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 1 \n" // [16~31]M
-    " buffer_load_dword    v234, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 2 \n" // [32~47]M
-    " buffer_load_dword    v235, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 3 \n" // [48~63]M
-    " buffer_load_dword    v236, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 4 \n" // [64~79]M
-    " buffer_load_dword    v237, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 5 \n" // [80~95]M
-    " buffer_load_dword    v238, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 6 \n" // [96~111]M
-    " buffer_load_dword    v239, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 7 \n" // [112~127]M
+    " buffer_load_dword    v232, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 0 \n" // scale a1: [0~15]M
+    " buffer_load_dword    v233, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 1 \n" // scale a1: [16~31]M
+    " buffer_load_dword    v234, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 2 \n" // scale a1: [32~47]M
+    " buffer_load_dword    v235, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 3 \n" // scale a1: [48~63]M
+    " buffer_load_dword    v236, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 4 \n" // scale a1: [64~79]M
+    " buffer_load_dword    v237, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 5 \n" // scale a1: [80~95]M
+    " buffer_load_dword    v238, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 6 \n" // scale a1: [96~111]M
+    " buffer_load_dword    v239, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 7 \n" // scale a1: [112~127]M
     " s_waitcnt vmcnt(0) \n"
     // scale b1
-    " s_load_dwordx2 s[84:85], s[28:29], 0 \n"
+    " s_load_dwordx2 s[84:85], s[28:29], 0 \n" // scale b1
     " s_waitcnt lgkmcnt(0)                 \n"
     
     // move to next A1
@@ -1259,48 +1258,47 @@
     " s_barrier          \n"
     
     // A0: lds->accvgpr
-    " ds_read_b128  acc[64:67],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 0 + %[n_a_lds_rd_offset_0] * 0 \n" // [0~15]M    * [0~63]K
-    " ds_read_b128  acc[68:71],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 0 + %[n_a_lds_rd_offset_0] * 1 \n" // [0~15]M    * [64~127]K
-    " ds_read_b128  acc[72:75],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 1 + %[n_a_lds_rd_offset_0] * 0 \n" // [16~31]M   * [0~63]K
-    " ds_read_b128  acc[76:79],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 1 + %[n_a_lds_rd_offset_0] * 1 \n" // [16~31]M   * [64~127]K
-    " ds_read_b128  acc[80:83],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 2 + %[n_a_lds_rd_offset_0] * 0 \n" // [32~47]M   * [0~63]K
-    " ds_read_b128  acc[84:87],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 2 + %[n_a_lds_rd_offset_0] * 1 \n" // [32~47]M   * [64~127]K
-    " ds_read_b128  acc[88:91],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 3 + %[n_a_lds_rd_offset_0] * 0 \n" // [48~63]M   * [0~63]K
-    " ds_read_b128  acc[92:95],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 3 + %[n_a_lds_rd_offset_0] * 1 \n" // [48~63]M   * [64~127]K
-    " ds_read_b128  acc[96:99],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 4 + %[n_a_lds_rd_offset_0] * 0 \n" // [64~79]M   * [0~63]K
-    " ds_read_b128  acc[100:103], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 4 + %[n_a_lds_rd_offset_0] * 1 \n" // [64~79]M   * [64~127]K
-    " ds_read_b128  acc[104:107], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 5 + %[n_a_lds_rd_offset_0] * 0 \n" // [80~95]M   * [0~63]K
-    " ds_read_b128  acc[108:111], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 5 + %[n_a_lds_rd_offset_0] * 1 \n" // [80~95]M   * [64~127]K
-    " ds_read_b128  acc[112:115], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 6 + %[n_a_lds_rd_offset_0] * 0 \n" // [96~111]M  * [0~63]K
-    " ds_read_b128  acc[116:119], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 6 + %[n_a_lds_rd_offset_0] * 1 \n" // [96~111]M  * [64~128]K
-    " ds_read_b128  acc[120:123], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 7 + %[n_a_lds_rd_offset_0] * 0 \n" // [112~127]M * [0~63]K
-    " ds_read_b128  acc[124:127], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 7 + %[n_a_lds_rd_offset_0] * 1 \n" // [112~127]M * [64~127]K
+    " ds_read_b128  acc[64:67],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 0 + %[n_a_lds_rd_offset_0] * 0 \n" // (A0)lds->accvgpr: [0~15]M    * [0~63]K
+    " ds_read_b128  acc[68:71],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 0 + %[n_a_lds_rd_offset_0] * 1 \n" // (A0)lds->accvgpr: [0~15]M    * [64~127]K
+    " ds_read_b128  acc[72:75],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 1 + %[n_a_lds_rd_offset_0] * 0 \n" // (A0)lds->accvgpr: [16~31]M   * [0~63]K
+    " ds_read_b128  acc[76:79],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 1 + %[n_a_lds_rd_offset_0] * 1 \n" // (A0)lds->accvgpr: [16~31]M   * [64~127]K
+    " ds_read_b128  acc[80:83],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 2 + %[n_a_lds_rd_offset_0] * 0 \n" // (A0)lds->accvgpr: [32~47]M   * [0~63]K
+    " ds_read_b128  acc[84:87],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 2 + %[n_a_lds_rd_offset_0] * 1 \n" // (A0)lds->accvgpr: [32~47]M   * [64~127]K
+    " ds_read_b128  acc[88:91],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 3 + %[n_a_lds_rd_offset_0] * 0 \n" // (A0)lds->accvgpr: [48~63]M   * [0~63]K
+    " ds_read_b128  acc[92:95],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 3 + %[n_a_lds_rd_offset_0] * 1 \n" // (A0)lds->accvgpr: [48~63]M   * [64~127]K
+    " ds_read_b128  acc[96:99],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 4 + %[n_a_lds_rd_offset_0] * 0 \n" // (A0)lds->accvgpr: [64~79]M   * [0~63]K
+    " ds_read_b128  acc[100:103], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 4 + %[n_a_lds_rd_offset_0] * 1 \n" // (A0)lds->accvgpr: [64~79]M   * [64~127]K
+    " ds_read_b128  acc[104:107], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 5 + %[n_a_lds_rd_offset_0] * 0 \n" // (A0)lds->accvgpr: [80~95]M   * [0~63]K
+    " ds_read_b128  acc[108:111], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 5 + %[n_a_lds_rd_offset_0] * 1 \n" // (A0)lds->accvgpr: [80~95]M   * [64~127]K
+    " ds_read_b128  acc[112:115], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 6 + %[n_a_lds_rd_offset_0] * 0 \n" // (A0)lds->accvgpr: [96~111]M  * [0~63]K
+    " ds_read_b128  acc[116:119], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 6 + %[n_a_lds_rd_offset_0] * 1 \n" // (A0)lds->accvgpr: [96~111]M  * [64~128]K
+    " ds_read_b128  acc[120:123], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 7 + %[n_a_lds_rd_offset_0] * 0 \n" // (A0)lds->accvgpr: [112~127]M * [0~63]K
+    " ds_read_b128  acc[124:127], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 7 + %[n_a_lds_rd_offset_0] * 1 \n" // (A0)lds->accvgpr: [112~127]M * [64~127]K
     " s_waitcnt lgkmcnt(0) \n"
 
     // B0: vmem->acc
-    " buffer_load_dwordx4  acc[0:3],   %[v_os_b0], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // [0~63]N   * [0~63]K
-    " buffer_load_dwordx4  acc[4:7],   %[v_os_b0], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // [0~63]N   * [64~127]K
-    " buffer_load_dwordx4  acc[8:11],  %[v_os_b1], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // [64~127]N * [0~63]K
-    " buffer_load_dwordx4  acc[12:15], %[v_os_b1], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // [64~127]N * [64~127]K
-
-    " buffer_load_dwordx4  acc[32:35], %[v_os_b2], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // [128~191]N * [0~63]K
-    " buffer_load_dwordx4  acc[36:39], %[v_os_b2], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // [128~191]N * [64~127]K
-    " buffer_load_dwordx4  acc[40:43], %[v_os_b3], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // [192~255]N * [0~63]K
-    " buffer_load_dwordx4  acc[44:47], %[v_os_b3], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // [192~255]N * [64~127]K
+    " buffer_load_dwordx4  acc[0:3],   %[v_os_b0], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // (B0)vmem->acc: [0~63]N   * [0~63]K
+    " buffer_load_dwordx4  acc[4:7],   %[v_os_b0], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // (B0)vmem->acc: [0~63]N   * [64~127]K
+    " buffer_load_dwordx4  acc[8:11],  %[v_os_b1], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // (B0)vmem->acc: [64~127]N * [0~63]K
+    " buffer_load_dwordx4  acc[12:15], %[v_os_b1], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // (B0)vmem->acc: [64~127]N * [64~127]K
+    " buffer_load_dwordx4  acc[32:35], %[v_os_b2], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // (B0)vmem->acc: [128~191]N * [0~63]K
+    " buffer_load_dwordx4  acc[36:39], %[v_os_b2], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // (B0)vmem->acc: [128~191]N * [64~127]K
+    " buffer_load_dwordx4  acc[40:43], %[v_os_b3], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // (B0)vmem->acc: [192~255]N * [0~63]K
+    " buffer_load_dwordx4  acc[44:47], %[v_os_b3], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // (B0)vmem->acc: [192~255]N * [64~127]K
     " s_waitcnt vmcnt(0) \n"
 
     // scale a0
-    " buffer_load_dword v224, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 0 \n" // [0~15]M
-    " buffer_load_dword v225, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 1 \n" // [16~31]M
-    " buffer_load_dword v226, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 2 \n" // [32~47]M
-    " buffer_load_dword v227, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 3 \n" // [48~63]M
-    " buffer_load_dword v228, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 4 \n" // [64~79]M
-    " buffer_load_dword v229, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 5 \n" // [80~95]M
-    " buffer_load_dword v230, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 6 \n" // [96~111]M
-    " buffer_load_dword v231, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 7 \n" // [112~127]M
+    " buffer_load_dword v224, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 0 \n" // scale a0: [0~15]M
+    " buffer_load_dword v225, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 1 \n" // scale a0: [16~31]M
+    " buffer_load_dword v226, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 2 \n" // scale a0: [32~47]M
+    " buffer_load_dword v227, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 3 \n" // scale a0: [48~63]M
+    " buffer_load_dword v228, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 4 \n" // scale a0: [64~79]M
+    " buffer_load_dword v229, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 5 \n" // scale a0: [80~95]M
+    " buffer_load_dword v230, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 6 \n" // scale a0: [96~111]M
+    " buffer_load_dword v231, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 7 \n" // scale a0: [112~127]M
     " s_waitcnt vmcnt(0) \n"
     // scale b0
-    " s_load_dwordx2 s[30:31], s[28:29],  0 \n"
+    " s_load_dwordx2 s[30:31], s[28:29],  0 \n" // scale b0
     " s_waitcnt lgkmcnt(0)                  \n"
 
     // move to next A0
@@ -1871,45 +1869,26 @@
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " buffer_load_dword  %[v_a_vm_ld_addr15], s[16:19], 0 offen lds \n"
     
-    // A1: lds->accvgpr
-    " ds_read_b128  acc[128:131], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 0 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // [0~15]M    * [0~63]K
-    " ds_read_b128  acc[132:135], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 0 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // [0~15]M    * [64~127]K
-    " ds_read_b128  acc[136:139], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 1 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // [16~31]M   * [0~63]K
-    " ds_read_b128  acc[140:143], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 1 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // [16~31]M   * [64~127]K
-    " ds_read_b128  acc[144:147], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 2 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // [32~47]M   * [0~63]K
-    " ds_read_b128  acc[148:151], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 2 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // [32~47]M   * [64~127]K
-    " ds_read_b128  acc[152:155], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 3 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // [48~63]M   * [0~63]K
-    " ds_read_b128  acc[156:159], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 3 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // [48~63]M   * [64~127]K
-    " ds_read_b128  acc[160:163], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 4 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // [64~79]M   * [0~63]K
-    " ds_read_b128  acc[164:167], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 4 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // [64~79]M   * [64~127]K
-    " ds_read_b128  acc[168:171], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 5 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // [80~95]M   * [0~63]K
-    " ds_read_b128  acc[172:175], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 5 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // [80~95]M   * [64~127]K
-    " ds_read_b128  acc[176:179], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 6 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // [96~111]M  * [0~63]K
-    " ds_read_b128  acc[180:183], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 6 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // [96~111]M  * [64~128]K
-    " ds_read_b128  acc[184:187], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 7 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // [112~127]M * [0~63]K
-    " ds_read_b128  acc[188:191], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 7 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // [112~127]M * [64~127]K
-    
     // B1: vmem->acc
-    " buffer_load_dwordx4  acc[16:19], %[v_os_b0], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // [0~63]N   * [0~63]K
-    " buffer_load_dwordx4  acc[20:23], %[v_os_b0], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // [0~63]N   * [64~127]K
-    " buffer_load_dwordx4  acc[24:27], %[v_os_b1], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // [64~127]N * [0~63]K
-    " buffer_load_dwordx4  acc[28:31], %[v_os_b1], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // [64~127]N * [64~127]K
-
-    " buffer_load_dwordx4  acc[48:51], %[v_os_b2], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // [128~191]N * [0~63]K
-    " buffer_load_dwordx4  acc[52:55], %[v_os_b2], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // [128~191]N * [64~127]K
-    " buffer_load_dwordx4  acc[56:59], %[v_os_b3], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // [192~255]N * [0~63]K
-    " buffer_load_dwordx4  acc[60:63], %[v_os_b3], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // [192~255]N * [64~127]K
+    " buffer_load_dwordx4  acc[16:19], %[v_os_b0], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // (B1)vmem->acc: [0~63]N   * [0~63]K
+    " buffer_load_dwordx4  acc[20:23], %[v_os_b0], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // (B1)vmem->acc: [0~63]N   * [64~127]K
+    " buffer_load_dwordx4  acc[24:27], %[v_os_b1], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // (B1)vmem->acc: [64~127]N * [0~63]K
+    " buffer_load_dwordx4  acc[28:31], %[v_os_b1], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // (B1)vmem->acc: [64~127]N * [64~127]K
+    " buffer_load_dwordx4  acc[48:51], %[v_os_b2], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // (B1)vmem->acc: [128~191]N * [0~63]K
+    " buffer_load_dwordx4  acc[52:55], %[v_os_b2], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // (B1)vmem->acc: [128~191]N * [64~127]K
+    " buffer_load_dwordx4  acc[56:59], %[v_os_b3], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // (B1)vmem->acc: [192~255]N * [0~63]K
+    " buffer_load_dwordx4  acc[60:63], %[v_os_b3], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // (B1)vmem->acc: [192~255]N * [64~127]K
 
     // scale a1, b1
-    " buffer_load_dword    v232, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 0 \n" // [0~15]M
-    " buffer_load_dword    v233, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 1 \n" // [16~31]M
-    " buffer_load_dword    v234, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 2 \n" // [32~47]M
-    " buffer_load_dword    v235, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 3 \n" // [48~63]M
-    " buffer_load_dword    v236, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 4 \n" // [64~79]M
-    " buffer_load_dword    v237, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 5 \n" // [80~95]M
-    " buffer_load_dword    v238, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 6 \n" // [96~111]M
-    " buffer_load_dword    v239, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 7 \n" // [112~127]M
-    " s_load_dwordx2 s[84:85], s[28:29], 0 \n"
+    " buffer_load_dword    v232, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 0 \n" // scale a1: [0~15]M
+    " buffer_load_dword    v233, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 1 \n" // scale a1: [16~31]M
+    " buffer_load_dword    v234, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 2 \n" // scale a1: [32~47]M
+    " buffer_load_dword    v235, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 3 \n" // scale a1: [48~63]M
+    " buffer_load_dword    v236, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 4 \n" // scale a1: [64~79]M
+    " buffer_load_dword    v237, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 5 \n" // scale a1: [80~95]M
+    " buffer_load_dword    v238, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 6 \n" // scale a1: [96~111]M
+    " buffer_load_dword    v239, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 7 \n" // scale a1: [112~127]M
+    " s_load_dwordx2 s[84:85], s[28:29], 0 \n" // scale b1
     
     // MFMA PING =========================================================================
     // scale c0 = scale a0 * scale b0 (ping)
@@ -2074,6 +2053,7 @@
     // ===================================================================================
     // C: [0~15]M * [128~191]N -----------------------------------------------------------
     _UK_MFMA_ " v[56:59], acc[32:33], acc[64:65], 0        \n"
+    " ds_read_b128  acc[128:131], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 0 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [0~15]M    * [0~63]K
     " v_fmac_f32 %[v_c_15x], v60, v231 \n"
     _UK_MFMA_ " v[56:59], acc[34:35], acc[66:67], v[56:59] \n"
     " v_fmac_f32 %[v_c_15y], v61, v231 \n"
@@ -2083,6 +2063,7 @@
     " v_fmac_f32 %[v_c_15w], v63, v231 \n"
     // C: [0~15]M  * [192~255]N  ---------------------------------------------------------
     _UK_MFMA_ " v[60:63], acc[40:41], acc[64:65], 0        \n"
+    " ds_read_b128  acc[132:135], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 0 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [0~15]M    * [64~127]K
     " v_fmac_f32 %[v_c_16x], v56, v240 \n"
     _UK_MFMA_ " v[60:63], acc[42:43], acc[66:67], v[60:63] \n"
     " v_fmac_f32 %[v_c_16y], v57, v240 \n"
@@ -2092,6 +2073,7 @@
     " v_fmac_f32 %[v_c_16w], v59, v240 \n"
     // C: [16~31]M * [128~191]N ----------------------------------------------------------
     _UK_MFMA_ " v[56:59], acc[32:33], acc[72:73], 0        \n"
+    " ds_read_b128  acc[136:139], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 1 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [16~31]M   * [0~63]K
     " v_fmac_f32 %[v_c_17x], v60, v240 \n"
     _UK_MFMA_ " v[56:59], acc[34:35], acc[74:75], v[56:59] \n"
     " v_fmac_f32 %[v_c_17y], v61, v240 \n"
@@ -2101,6 +2083,7 @@
     " v_fmac_f32 %[v_c_17w], v63, v240 \n"
     // C: [16~31]M  * [192~255]N ---------------------------------------------------------
     _UK_MFMA_ " v[60:63], acc[40:41], acc[72:73], 0        \n"
+    " ds_read_b128  acc[140:143], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 1 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [16~31]M   * [64~127]K
     " v_fmac_f32 %[v_c_18x], v56, v241 \n"
     _UK_MFMA_ " v[60:63], acc[42:43], acc[74:75], v[60:63] \n"
     " v_fmac_f32 %[v_c_18y], v57, v241 \n"
@@ -2110,6 +2093,7 @@
     " v_fmac_f32 %[v_c_18w], v59, v241 \n"
     // C: [32~47]M   * [128~191]N --------------------------------------------------------
     _UK_MFMA_ " v[56:59], acc[32:33], acc[80:81], 0        \n"
+    " ds_read_b128  acc[144:147], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 2 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [32~47]M   * [0~63]K
     " v_fmac_f32 %[v_c_19x], v60, v241 \n"
     _UK_MFMA_ " v[56:59], acc[34:35], acc[82:83], v[56:59] \n"
     " v_fmac_f32 %[v_c_19y], v61, v241 \n"
@@ -2119,6 +2103,7 @@
     " v_fmac_f32 %[v_c_19w], v63, v241 \n"
     // C: [32~47]M  * [192~255]N ---------------------------------------------------------
     _UK_MFMA_ " v[60:63], acc[40:41], acc[80:81], 0        \n"
+    " ds_read_b128  acc[148:151], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 2 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [32~47]M   * [64~127]K
     " v_fmac_f32 %[v_c_20x], v56, v242 \n"
     _UK_MFMA_ " v[60:63], acc[42:43], acc[82:83], v[60:63] \n"
     " v_fmac_f32 %[v_c_20y], v57, v242 \n"
@@ -2128,6 +2113,7 @@
     " v_fmac_f32 %[v_c_20w], v59, v242 \n"
     // C: [48~63]M   * [128~191]N --------------------------------------------------------
     _UK_MFMA_ " v[56:59], acc[32:33], acc[88:89], 0        \n"
+    " ds_read_b128  acc[152:155], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 3 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [48~63]M   * [0~63]K
     " v_fmac_f32 %[v_c_21x], v60, v242 \n"
     _UK_MFMA_ " v[56:59], acc[34:35], acc[90:91], v[56:59] \n"
     " v_fmac_f32 %[v_c_21y], v61, v242 \n"
@@ -2137,6 +2123,7 @@
     " v_fmac_f32 %[v_c_21w], v63, v242 \n"
     // C: [48~63]M  * [192~255]N ---------------------------------------------------------
     _UK_MFMA_ " v[60:63], acc[40:41], acc[88:89], 0        \n"
+    " ds_read_b128  acc[156:159], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 3 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [48~63]M   * [64~127]K
     " v_fmac_f32 %[v_c_22x], v56, v243 \n"
     _UK_MFMA_ " v[60:63], acc[42:43], acc[90:91], v[60:63] \n"
     " v_fmac_f32 %[v_c_22y], v57, v243 \n"
@@ -2146,6 +2133,7 @@
     " v_fmac_f32 %[v_c_22w], v59, v243 \n"
     // C: [64~79]M   * [128~191]N --------------------------------------------------------
     _UK_MFMA_ " v[56:59], acc[32:33], acc[96:97],   0        \n"
+    " ds_read_b128  acc[160:163], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 4 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [64~79]M   * [0~63]K
     " v_fmac_f32 %[v_c_23x], v60, v243 \n"
     _UK_MFMA_ " v[56:59], acc[34:35], acc[98:99],   v[56:59] \n"
     " v_fmac_f32 %[v_c_23y], v61, v243 \n"
@@ -2155,6 +2143,7 @@
     " v_fmac_f32 %[v_c_23w], v63, v243 \n"
     // C: [64~79]M  * [192~255]N ---------------------------------------------------------
     _UK_MFMA_ " v[60:63], acc[40:41], acc[96:97],   0        \n"
+    " ds_read_b128  acc[164:167], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 4 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [64~79]M   * [64~127]K
     " v_fmac_f32 %[v_c_24x], v56, v244 \n"
     _UK_MFMA_ " v[60:63], acc[42:43], acc[98:99],   v[60:63] \n"
     " v_fmac_f32 %[v_c_24y], v57, v244 \n"
@@ -2164,6 +2153,7 @@
     " v_fmac_f32 %[v_c_24w], v59, v244 \n"
     // C: [80~95]M   * [128~191]N --------------------------------------------------------
     _UK_MFMA_ " v[56:59], acc[32:33], acc[104:105], 0        \n"
+    " ds_read_b128  acc[168:171], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 5 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [80~95]M   * [0~63]K
     " v_fmac_f32 %[v_c_25x], v60, v244 \n"
     _UK_MFMA_ " v[56:59], acc[34:35], acc[106:107], v[56:59] \n"
     " v_fmac_f32 %[v_c_25y], v61, v244 \n"
@@ -2173,6 +2163,7 @@
     " v_fmac_f32 %[v_c_25w], v63, v244 \n"
     // C: [80~95]M  * [192~255]N ---------------------------------------------------------
     _UK_MFMA_ " v[60:63], acc[40:41], acc[104:105], 0        \n"
+    " ds_read_b128  acc[172:175], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 5 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [80~95]M   * [64~127]K
     " v_fmac_f32 %[v_c_26x], v56, v245 \n"
     _UK_MFMA_ " v[60:63], acc[42:43], acc[106:107], v[60:63] \n"
     " v_fmac_f32 %[v_c_26y], v57, v245 \n"
@@ -2182,6 +2173,7 @@
     " v_fmac_f32 %[v_c_26w], v59, v245 \n"
     // C: [96~111]M  * [128~191]N --------------------------------------------------------
     _UK_MFMA_ " v[56:59], acc[32:33], acc[112:113], 0        \n"
+    " ds_read_b128  acc[176:179], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 6 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [96~111]M  * [0~63]K
     " v_fmac_f32 %[v_c_27x], v60, v245 \n"
     _UK_MFMA_ " v[56:59], acc[34:35], acc[114:115], v[56:59] \n"
     " v_fmac_f32 %[v_c_27y], v61, v245 \n"
@@ -2191,6 +2183,7 @@
     " v_fmac_f32 %[v_c_27w], v63, v245 \n"
     // C: [96~111]M  * [192~255]N --------------------------------------------------------
     _UK_MFMA_ " v[60:63], acc[40:41], acc[112:113], 0        \n"
+    " ds_read_b128  acc[180:183], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 6 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [96~111]M  * [64~128]K
     " v_fmac_f32 %[v_c_28x], v56, v246 \n"
     _UK_MFMA_ " v[60:63], acc[42:43], acc[114:115], v[60:63] \n"
     " v_fmac_f32 %[v_c_28y], v57, v246 \n"
@@ -2200,6 +2193,7 @@
     " v_fmac_f32 %[v_c_28w], v59, v246 \n"
     // C: [112~127]M * [128~191]N --------------------------------------------------------
     _UK_MFMA_ " v[56:59], acc[32:33], acc[120:121], 0        \n"
+    " ds_read_b128  acc[184:187], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 7 + %[n_a_lds_rd_offset_0] * 0 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [112~127]M * [0~63]K
     " v_fmac_f32 %[v_c_29x], v60, v246 \n"
     _UK_MFMA_ " v[56:59], acc[34:35], acc[122:123], v[56:59] \n"
     " v_fmac_f32 %[v_c_29y], v61, v246 \n"
@@ -2209,6 +2203,7 @@
     " v_fmac_f32 %[v_c_29w], v63, v246 \n"
     // C: [112~127]M * [192~255]N --------------------------------------------------------
     _UK_MFMA_ " v[60:63], acc[40:41], acc[120:121], 0        \n"
+    " ds_read_b128  acc[188:191], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 7 + %[n_a_lds_rd_offset_0] * 1 + %[n_a_lds_pingpang_sz]  \n" // (A1)lds->accvgpr: [112~127]M * [64~127]K
     " v_fmac_f32 %[v_c_30x], v56, v247 \n"
     _UK_MFMA_ " v[60:63], acc[42:43], acc[122:123], v[60:63] \n"
     " v_fmac_f32 %[v_c_30y], v57, v247 \n"
@@ -2220,7 +2215,7 @@
     " v_fmac_f32 %[v_c_31x], v60, v247 \n"
     " v_fmac_f32 %[v_c_31y], v61, v247 \n"
     " v_fmac_f32 %[v_c_31z], v62, v247 \n"
-    " v_fmac_f32 %[v_c_31w], v63, v247 \n"
+    " v_fmac_f32 %[v_c_31w], v63, v247 \n"    
     // -----------------------------------------------------------------------------------
     // forloop
     " s_sub_i32     %[s_loop_cnt], %[s_loop_cnt], 1 \n"
@@ -2288,46 +2283,27 @@
     " buffer_load_dword  %[v_a_vm_ld_addr14], s[16:19], 0 offen lds \n"
     " s_add_u32     m0,  %[s_a_m0_offset], m0 \n"
     " buffer_load_dword  %[v_a_vm_ld_addr15], s[16:19], 0 offen lds \n"
-    
-    // A0: lds->accvgpr
-    " ds_read_b128  acc[64:67],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 0 + %[n_a_lds_rd_offset_0] * 0 \n" // [0~15]M    * [0~63]K
-    " ds_read_b128  acc[68:71],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 0 + %[n_a_lds_rd_offset_0] * 1 \n" // [0~15]M    * [64~127]K
-    " ds_read_b128  acc[72:75],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 1 + %[n_a_lds_rd_offset_0] * 0 \n" // [16~31]M   * [0~63]K
-    " ds_read_b128  acc[76:79],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 1 + %[n_a_lds_rd_offset_0] * 1 \n" // [16~31]M   * [64~127]K
-    " ds_read_b128  acc[80:83],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 2 + %[n_a_lds_rd_offset_0] * 0 \n" // [32~47]M   * [0~63]K
-    " ds_read_b128  acc[84:87],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 2 + %[n_a_lds_rd_offset_0] * 1 \n" // [32~47]M   * [64~127]K
-    " ds_read_b128  acc[88:91],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 3 + %[n_a_lds_rd_offset_0] * 0 \n" // [48~63]M   * [0~63]K
-    " ds_read_b128  acc[92:95],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 3 + %[n_a_lds_rd_offset_0] * 1 \n" // [48~63]M   * [64~127]K
-    " ds_read_b128  acc[96:99],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 4 + %[n_a_lds_rd_offset_0] * 0 \n" // [64~79]M   * [0~63]K
-    " ds_read_b128  acc[100:103], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 4 + %[n_a_lds_rd_offset_0] * 1 \n" // [64~79]M   * [64~127]K
-    " ds_read_b128  acc[104:107], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 5 + %[n_a_lds_rd_offset_0] * 0 \n" // [80~95]M   * [0~63]K
-    " ds_read_b128  acc[108:111], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 5 + %[n_a_lds_rd_offset_0] * 1 \n" // [80~95]M   * [64~127]K
-    " ds_read_b128  acc[112:115], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 6 + %[n_a_lds_rd_offset_0] * 0 \n" // [96~111]M  * [0~63]K
-    " ds_read_b128  acc[116:119], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 6 + %[n_a_lds_rd_offset_0] * 1 \n" // [96~111]M  * [64~128]K
-    " ds_read_b128  acc[120:123], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 7 + %[n_a_lds_rd_offset_0] * 0 \n" // [112~127]M * [0~63]K
-    " ds_read_b128  acc[124:127], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 7 + %[n_a_lds_rd_offset_0] * 1 \n" // [112~127]M * [64~127]K
 
     // B0: vmem->acc
-    " buffer_load_dwordx4  acc[0:3],   %[v_os_b0], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // [0~63]N   * [0~63]K
-    " buffer_load_dwordx4  acc[4:7],   %[v_os_b0], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // [0~63]N   * [64~127]K
-    " buffer_load_dwordx4  acc[8:11],  %[v_os_b1], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // [64~127]N * [0~63]K
-    " buffer_load_dwordx4  acc[12:15], %[v_os_b1], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // [64~127]N * [64~127]K
-
-    " buffer_load_dwordx4  acc[32:35], %[v_os_b2], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // [128~191]N * [0~63]K
-    " buffer_load_dwordx4  acc[36:39], %[v_os_b2], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // [128~191]N * [64~127]K
-    " buffer_load_dwordx4  acc[40:43], %[v_os_b3], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // [192~255]N * [0~63]K
-    " buffer_load_dwordx4  acc[44:47], %[v_os_b3], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // [192~255]N * [64~127]K
+    " buffer_load_dwordx4  acc[0:3],   %[v_os_b0], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // (B0)vmem->acc: [0~63]N   * [0~63]K
+    " buffer_load_dwordx4  acc[4:7],   %[v_os_b0], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // (B0)vmem->acc: [0~63]N   * [64~127]K
+    " buffer_load_dwordx4  acc[8:11],  %[v_os_b1], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // (B0)vmem->acc: [64~127]N * [0~63]K
+    " buffer_load_dwordx4  acc[12:15], %[v_os_b1], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // (B0)vmem->acc: [64~127]N * [64~127]K
+    " buffer_load_dwordx4  acc[32:35], %[v_os_b2], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // (B0)vmem->acc: [128~191]N * [0~63]K
+    " buffer_load_dwordx4  acc[36:39], %[v_os_b2], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // (B0)vmem->acc: [128~191]N * [64~127]K
+    " buffer_load_dwordx4  acc[40:43], %[v_os_b3], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 0 \n" // (B0)vmem->acc: [192~255]N * [0~63]K
+    " buffer_load_dwordx4  acc[44:47], %[v_os_b3], s[20:23], 0 offen offset: %[n_fb_vm_ld_offset] * 1 \n" // (B0)vmem->acc: [192~255]N * [64~127]K
 
     // scale a0, b0
-    " buffer_load_dword v224, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 0 \n" // [0~15]M
-    " buffer_load_dword v225, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 1 \n" // [16~31]M
-    " buffer_load_dword v226, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 2 \n" // [32~47]M
-    " buffer_load_dword v227, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 3 \n" // [48~63]M
-    " buffer_load_dword v228, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 4 \n" // [64~79]M
-    " buffer_load_dword v229, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 5 \n" // [80~95]M
-    " buffer_load_dword v230, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 6 \n" // [96~111]M
-    " buffer_load_dword v231, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 7 \n" // [112~127]M
-    " s_load_dwordx2 s[30:31], s[28:29],  0 \n"
+    " buffer_load_dword v224, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 0 \n" // scale a0: [0~15]M
+    " buffer_load_dword v225, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 1 \n" // scale a0: [16~31]M
+    " buffer_load_dword v226, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 2 \n" // scale a0: [32~47]M
+    " buffer_load_dword v227, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 3 \n" // scale a0: [48~63]M
+    " buffer_load_dword v228, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 4 \n" // scale a0: [64~79]M
+    " buffer_load_dword v229, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 5 \n" // scale a0: [80~95]M
+    " buffer_load_dword v230, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 6 \n" // scale a0: [96~111]M
+    " buffer_load_dword v231, %[v_sa_vm_ld_addr],  s[24:27], 0 offen offset: %[n_sa_vm_ld_offset] * 7 \n" // scale a0: [112~127]M
+    " s_load_dwordx2 s[30:31], s[28:29],  0 \n" // scale b0
     
     // MFMA PANG =========================================================================
     // scale c1 = scale a1 * scale b1
@@ -2492,6 +2468,7 @@
     // ===================================================================================
     // C: [0~15]M * [128~191]N -----------------------------------------------------------
     _UK_MFMA_ " v[56:59], acc[48:49], acc[128:129], 0 \n"
+    " ds_read_b128  acc[64:67],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 0 + %[n_a_lds_rd_offset_0] * 0 \n" // (A0)lds->accvgpr: [0~15]M    * [0~63]K
     " v_fmac_f32 %[v_c_15x], v60, v239 \n"
     _UK_MFMA_ " v[56:59], acc[50:51], acc[130:131], v[56:59] \n"
     " v_fmac_f32 %[v_c_15y], v61, v239 \n"
@@ -2501,6 +2478,7 @@
     " v_fmac_f32 %[v_c_15w], v63, v239 \n"
     // C: [0~15]M  * [192~255]N  ---------------------------------------------------------
     _UK_MFMA_ " v[60:63], acc[56:57], acc[128:129], 0 \n"
+    " ds_read_b128  acc[68:71],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 0 + %[n_a_lds_rd_offset_0] * 1 \n" // (A0)lds->accvgpr: [0~15]M    * [64~127]K
     " v_fmac_f32 %[v_c_16x], v56, v248 \n"
     _UK_MFMA_ " v[60:63], acc[58:59], acc[130:131], v[60:63] \n"
     " v_fmac_f32 %[v_c_16y], v57, v248 \n"
@@ -2510,6 +2488,7 @@
     " v_fmac_f32 %[v_c_16w], v59, v248 \n"
     // C: [16~31]M * [128~191]N ----------------------------------------------------------
     _UK_MFMA_ " v[56:59], acc[48:49], acc[136:137], 0 \n"
+    " ds_read_b128  acc[72:75],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 1 + %[n_a_lds_rd_offset_0] * 0 \n" // (A0)lds->accvgpr: [16~31]M   * [0~63]K
     " v_fmac_f32 %[v_c_17x], v60, v248 \n"
     _UK_MFMA_ " v[56:59], acc[50:51], acc[138:139], v[56:59] \n"
     " v_fmac_f32 %[v_c_17y], v61, v248 \n"
@@ -2519,6 +2498,7 @@
     " v_fmac_f32 %[v_c_17w], v63, v248 \n"
     // C: [16~31]M  * [192~255]N ---------------------------------------------------------
     _UK_MFMA_ " v[60:63], acc[56:57], acc[136:137], 0 \n"
+    " ds_read_b128  acc[76:79],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 1 + %[n_a_lds_rd_offset_0] * 1 \n" // (A0)lds->accvgpr: [16~31]M   * [64~127]K
     " v_fmac_f32 %[v_c_18x], v56, v249 \n"
     _UK_MFMA_ " v[60:63], acc[58:59], acc[138:139], v[60:63] \n"
     " v_fmac_f32 %[v_c_18y], v57, v249 \n"
@@ -2528,6 +2508,7 @@
     " v_fmac_f32 %[v_c_18w], v59, v249 \n"
     // C: [32~47]M   * [128~191]N --------------------------------------------------------
     _UK_MFMA_ " v[56:59], acc[48:49], acc[144:145], 0 \n"
+    " ds_read_b128  acc[80:83],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 2 + %[n_a_lds_rd_offset_0] * 0 \n" // (A0)lds->accvgpr: [32~47]M   * [0~63]K
     " v_fmac_f32 %[v_c_19x], v60, v249 \n"
     _UK_MFMA_ " v[56:59], acc[50:51], acc[146:147], v[56:59] \n"
     " v_fmac_f32 %[v_c_19y], v61, v249 \n"
@@ -2537,6 +2518,7 @@
     " v_fmac_f32 %[v_c_19w], v63, v249 \n"
     // C: [32~47]M  * [192~255]N ---------------------------------------------------------
     _UK_MFMA_ " v[60:63], acc[56:57], acc[144:145], 0 \n"
+    " ds_read_b128  acc[84:87],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 2 + %[n_a_lds_rd_offset_0] * 1 \n" // (A0)lds->accvgpr: [32~47]M   * [64~127]K
     " v_fmac_f32 %[v_c_20x], v56, v250 \n"
     _UK_MFMA_ " v[60:63], acc[58:59], acc[146:147], v[60:63] \n"
     " v_fmac_f32 %[v_c_20y], v57, v250 \n"
@@ -2546,6 +2528,7 @@
     " v_fmac_f32 %[v_c_20w], v59, v250 \n"
     // C: [48~63]M   * [128~191]N --------------------------------------------------------
     _UK_MFMA_ " v[56:59], acc[48:49], acc[152:153], 0 \n"
+    " ds_read_b128  acc[88:91],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 3 + %[n_a_lds_rd_offset_0] * 0 \n" // (A0)lds->accvgpr: [48~63]M   * [0~63]K
     " v_fmac_f32 %[v_c_21x], v60, v250 \n"
     _UK_MFMA_ " v[56:59], acc[50:51], acc[154:155], v[56:59] \n"
     " v_fmac_f32 %[v_c_21y], v61, v250 \n"
@@ -2555,6 +2538,7 @@
     " v_fmac_f32 %[v_c_21w], v63, v250 \n"
     // C: [48~63]M  * [192~255]N ---------------------------------------------------------
     _UK_MFMA_ " v[60:63], acc[56:57], acc[152:153], 0 \n"
+    " ds_read_b128  acc[92:95],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 3 + %[n_a_lds_rd_offset_0] * 1 \n" // (A0)lds->accvgpr: [48~63]M   * [64~127]K
     " v_fmac_f32 %[v_c_22x], v56, v251 \n"
     _UK_MFMA_ " v[60:63], acc[58:59], acc[154:155], v[60:63] \n"
     " v_fmac_f32 %[v_c_22y], v57, v251 \n"
@@ -2564,6 +2548,7 @@
     " v_fmac_f32 %[v_c_22w], v59, v251 \n"
     // C: [64~79]M   * [128~191]N --------------------------------------------------------
     _UK_MFMA_ " v[56:59], acc[48:49], acc[160:161], 0 \n"
+    " ds_read_b128  acc[96:99],   %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 4 + %[n_a_lds_rd_offset_0] * 0 \n" // (A0)lds->accvgpr: [64~79]M   * [0~63]K
     " v_fmac_f32 %[v_c_23x], v60, v251 \n"
     _UK_MFMA_ " v[56:59], acc[50:51], acc[162:163], v[56:59] \n"
     " v_fmac_f32 %[v_c_23y], v61, v251 \n"
@@ -2573,6 +2558,7 @@
     " v_fmac_f32 %[v_c_23w], v63, v251 \n"
     // C: [64~79]M  * [192~255]N ---------------------------------------------------------
     _UK_MFMA_ " v[60:63], acc[56:57], acc[160:161], 0 \n"
+    " ds_read_b128  acc[100:103], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 4 + %[n_a_lds_rd_offset_0] * 1 \n" // (A0)lds->accvgpr: [64~79]M   * [64~127]K
     " v_fmac_f32 %[v_c_24x], v56, v252 \n"
     _UK_MFMA_ " v[60:63], acc[58:59], acc[162:163], v[60:63] \n"
     " v_fmac_f32 %[v_c_24y], v57, v252 \n"
@@ -2582,6 +2568,7 @@
     " v_fmac_f32 %[v_c_24w], v59, v252 \n"
     // C: [80~95]M   * [128~191]N --------------------------------------------------------
     _UK_MFMA_ " v[56:59], acc[48:49], acc[168:169], 0 \n"
+    " ds_read_b128  acc[104:107], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 5 + %[n_a_lds_rd_offset_0] * 0 \n" // (A0)lds->accvgpr: [80~95]M   * [0~63]K
     " v_fmac_f32 %[v_c_25x], v60, v252 \n"
     _UK_MFMA_ " v[56:59], acc[50:51], acc[170:171], v[56:59] \n"
     " v_fmac_f32 %[v_c_25y], v61, v252 \n"
@@ -2591,6 +2578,7 @@
     " v_fmac_f32 %[v_c_25w], v63, v252 \n"
     // C: [80~95]M  * [192~255]N ---------------------------------------------------------
     _UK_MFMA_ " v[60:63], acc[56:57], acc[168:169], 0 \n"
+    " ds_read_b128  acc[108:111], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 5 + %[n_a_lds_rd_offset_0] * 1 \n" // (A0)lds->accvgpr: [80~95]M   * [64~127]K
     " v_fmac_f32 %[v_c_26x], v56, v253 \n"
     _UK_MFMA_ " v[60:63], acc[58:59], acc[170:171], v[60:63] \n"
     " v_fmac_f32 %[v_c_26y], v57, v253 \n"
@@ -2600,6 +2588,7 @@
     " v_fmac_f32 %[v_c_26w], v59, v253 \n"
     // C: [96~111]M  * [128~191]N --------------------------------------------------------
     _UK_MFMA_ " v[56:59], acc[48:49], acc[176:177], 0 \n"
+    " ds_read_b128  acc[112:115], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 6 + %[n_a_lds_rd_offset_0] * 0 \n" // (A0)lds->accvgpr: [96~111]M  * [0~63]K
     " v_fmac_f32 %[v_c_27x], v60, v253 \n"
     _UK_MFMA_ " v[56:59], acc[50:51], acc[178:179], v[56:59] \n"
     " v_fmac_f32 %[v_c_27y], v61, v253 \n"
@@ -2609,6 +2598,7 @@
     " v_fmac_f32 %[v_c_27w], v63, v253 \n"
     // C: [96~111]M * [192~255]N ---------------------------------------------------------
     _UK_MFMA_ " v[60:63], acc[56:57], acc[176:177], 0 \n"
+    " ds_read_b128  acc[116:119], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 6 + %[n_a_lds_rd_offset_0] * 1 \n" // (A0)lds->accvgpr: [96~111]M  * [64~128]K
     " v_fmac_f32 %[v_c_28x], v56, v254 \n"
     _UK_MFMA_ " v[60:63], acc[58:59], acc[178:179], v[60:63] \n"
     " v_fmac_f32 %[v_c_28y], v57, v254 \n"
@@ -2618,6 +2608,7 @@
     " v_fmac_f32 %[v_c_28w], v59, v254 \n"
     // C: [112~127]M * [128~191]N --------------------------------------------------------
     _UK_MFMA_ " v[56:59], acc[48:49], acc[184:185], 0 \n"
+    " ds_read_b128  acc[120:123], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 7 + %[n_a_lds_rd_offset_0] * 0 \n" // (A0)lds->accvgpr: [112~127]M * [0~63]K
     " v_fmac_f32 %[v_c_29x], v60, v254 \n"
     _UK_MFMA_ " v[56:59], acc[50:51], acc[186:187], v[56:59] \n"
     " v_fmac_f32 %[v_c_29y], v61, v254 \n"
@@ -2627,6 +2618,7 @@
     " v_fmac_f32 %[v_c_29w], v63, v254 \n"
     // C: [112~127]M * [192~255]N --------------------------------------------------------
     _UK_MFMA_ " v[60:63], acc[56:57], acc[184:185], 0 \n"
+    " ds_read_b128  acc[124:127], %[v_a_lds_rd_addr]  offset: %[n_a_lds_rd_offset_1] * 7 + %[n_a_lds_rd_offset_0] * 1 \n" // (A0)lds->accvgpr: [112~127]M * [64~127]K
     " v_fmac_f32 %[v_c_30x], v56, v255 \n"
     _UK_MFMA_ " v[60:63], acc[58:59], acc[186:187], v[60:63] \n"
     " v_fmac_f32 %[v_c_30y], v57, v255 \n"
