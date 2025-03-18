@@ -1059,7 +1059,7 @@ struct Flatmm_ff_128x256x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x256x128_1
         int accVmStRowIdx = MIdxInMfmaM + vmAccBlkRowIdx;
 #else
         int accVmStRowIdx = threadIdx.x % mfmaM + vmAccBlkRowIdx;
-#endif        
+#endif
 
         int vmAccNBlkIdx = blockIdx.x;
         int vmAccBlkColIdx = vmAccNBlkIdx * Block_N;
@@ -1069,6 +1069,7 @@ struct Flatmm_ff_128x256x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x256x128_1
         int accVmStOffsetInRow = mfmaM;        
 
         int accVmStOffset = 0;
+        if(accVmStRowIdx + accVmStOffsetInRow * 0 >= M) goto RTN;
         accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 0) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
         d_fp16_ptr[accVmStOffset+0] = type_convert<ODataType>(acc_0x);
         d_fp16_ptr[accVmStOffset+1] = type_convert<ODataType>(acc_0y);
@@ -1078,77 +1079,6 @@ struct Flatmm_ff_128x256x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x256x128_1
         d_fp16_ptr[accVmStOffset+1 + accVmStOffsetInCol] = type_convert<ODataType>(acc_1y);
         d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol] = type_convert<ODataType>(acc_1z);
         d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol] = type_convert<ODataType>(acc_1w);
-
-        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 1) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
-        d_fp16_ptr[accVmStOffset+0] = type_convert<ODataType>(acc_2x);
-        d_fp16_ptr[accVmStOffset+1] = type_convert<ODataType>(acc_2y);
-        d_fp16_ptr[accVmStOffset+2] = type_convert<ODataType>(acc_2z);
-        d_fp16_ptr[accVmStOffset+3] = type_convert<ODataType>(acc_2w);
-        d_fp16_ptr[accVmStOffset+0 + accVmStOffsetInCol] = type_convert<ODataType>(acc_3x);
-        d_fp16_ptr[accVmStOffset+1 + accVmStOffsetInCol] = type_convert<ODataType>(acc_3y);
-        d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol] = type_convert<ODataType>(acc_3z);
-        d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol] = type_convert<ODataType>(acc_3w);
-
-        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 2) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
-        d_fp16_ptr[accVmStOffset+0] = type_convert<ODataType>(acc_4x);
-        d_fp16_ptr[accVmStOffset+1] = type_convert<ODataType>(acc_4y);
-        d_fp16_ptr[accVmStOffset+2] = type_convert<ODataType>(acc_4z);
-        d_fp16_ptr[accVmStOffset+3] = type_convert<ODataType>(acc_4w);
-        d_fp16_ptr[accVmStOffset+0 + accVmStOffsetInCol] = type_convert<ODataType>(acc_5x);
-        d_fp16_ptr[accVmStOffset+1 + accVmStOffsetInCol] = type_convert<ODataType>(acc_5y);
-        d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol] = type_convert<ODataType>(acc_5z);
-        d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol] = type_convert<ODataType>(acc_5w);
-
-        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 3) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
-        d_fp16_ptr[accVmStOffset+0] = type_convert<ODataType>(acc_6x);
-        d_fp16_ptr[accVmStOffset+1] = type_convert<ODataType>(acc_6y);
-        d_fp16_ptr[accVmStOffset+2] = type_convert<ODataType>(acc_6z);
-        d_fp16_ptr[accVmStOffset+3] = type_convert<ODataType>(acc_6w);
-        d_fp16_ptr[accVmStOffset+0 + accVmStOffsetInCol] = type_convert<ODataType>(acc_7x);
-        d_fp16_ptr[accVmStOffset+1 + accVmStOffsetInCol] = type_convert<ODataType>(acc_7y);
-        d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol] = type_convert<ODataType>(acc_7z);
-        d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol] = type_convert<ODataType>(acc_7w);
-
-        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 4) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
-        d_fp16_ptr[accVmStOffset+0] = type_convert<ODataType>(acc_8x);
-        d_fp16_ptr[accVmStOffset+1] = type_convert<ODataType>(acc_8y);
-        d_fp16_ptr[accVmStOffset+2] = type_convert<ODataType>(acc_8z);
-        d_fp16_ptr[accVmStOffset+3] = type_convert<ODataType>(acc_8w);
-        d_fp16_ptr[accVmStOffset+0 + accVmStOffsetInCol] = type_convert<ODataType>(acc_9x);
-        d_fp16_ptr[accVmStOffset+1 + accVmStOffsetInCol] = type_convert<ODataType>(acc_9y);
-        d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol] = type_convert<ODataType>(acc_9z);
-        d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol] = type_convert<ODataType>(acc_9w);
-
-        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 5) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
-        d_fp16_ptr[accVmStOffset+0] = type_convert<ODataType>(acc_10x);
-        d_fp16_ptr[accVmStOffset+1] = type_convert<ODataType>(acc_10y);
-        d_fp16_ptr[accVmStOffset+2] = type_convert<ODataType>(acc_10z);
-        d_fp16_ptr[accVmStOffset+3] = type_convert<ODataType>(acc_10w);
-        d_fp16_ptr[accVmStOffset+0 + accVmStOffsetInCol] = type_convert<ODataType>(acc_11x);
-        d_fp16_ptr[accVmStOffset+1 + accVmStOffsetInCol] = type_convert<ODataType>(acc_11y);
-        d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol] = type_convert<ODataType>(acc_11z);
-        d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol] = type_convert<ODataType>(acc_11w);
-
-        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 6) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
-        d_fp16_ptr[accVmStOffset+0] = type_convert<ODataType>(acc_12x);
-        d_fp16_ptr[accVmStOffset+1] = type_convert<ODataType>(acc_12y);
-        d_fp16_ptr[accVmStOffset+2] = type_convert<ODataType>(acc_12z);
-        d_fp16_ptr[accVmStOffset+3] = type_convert<ODataType>(acc_12w);
-        d_fp16_ptr[accVmStOffset+0 + accVmStOffsetInCol] = type_convert<ODataType>(acc_13x);
-        d_fp16_ptr[accVmStOffset+1 + accVmStOffsetInCol] = type_convert<ODataType>(acc_13y);
-        d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol] = type_convert<ODataType>(acc_13z);
-        d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol] = type_convert<ODataType>(acc_13w);
-
-        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 7) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
-        d_fp16_ptr[accVmStOffset+0] = type_convert<ODataType>(acc_14x);
-        d_fp16_ptr[accVmStOffset+1] = type_convert<ODataType>(acc_14y);
-        d_fp16_ptr[accVmStOffset+2] = type_convert<ODataType>(acc_14z);
-        d_fp16_ptr[accVmStOffset+3] = type_convert<ODataType>(acc_14w);
-        d_fp16_ptr[accVmStOffset+0 + accVmStOffsetInCol] = type_convert<ODataType>(acc_15x);
-        d_fp16_ptr[accVmStOffset+1 + accVmStOffsetInCol] = type_convert<ODataType>(acc_15y);
-        d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol] = type_convert<ODataType>(acc_15z);
-        d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol] = type_convert<ODataType>(acc_15w);
-        // ------------------------------------------------------------------------------------------------
         accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 0) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
         d_fp16_ptr[accVmStOffset+0 + accVmStOffsetInCol*2] = type_convert<ODataType>(acc_16x);
         d_fp16_ptr[accVmStOffset+1 + accVmStOffsetInCol*2] = type_convert<ODataType>(acc_16y);
@@ -1159,6 +1089,16 @@ struct Flatmm_ff_128x256x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x256x128_1
         d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol*3] = type_convert<ODataType>(acc_17z);
         d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol*3] = type_convert<ODataType>(acc_17w);
 
+        if(accVmStRowIdx + accVmStOffsetInRow * 1 >= M) goto RTN;
+        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 1) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
+        d_fp16_ptr[accVmStOffset+0] = type_convert<ODataType>(acc_2x);
+        d_fp16_ptr[accVmStOffset+1] = type_convert<ODataType>(acc_2y);
+        d_fp16_ptr[accVmStOffset+2] = type_convert<ODataType>(acc_2z);
+        d_fp16_ptr[accVmStOffset+3] = type_convert<ODataType>(acc_2w);
+        d_fp16_ptr[accVmStOffset+0 + accVmStOffsetInCol] = type_convert<ODataType>(acc_3x);
+        d_fp16_ptr[accVmStOffset+1 + accVmStOffsetInCol] = type_convert<ODataType>(acc_3y);
+        d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol] = type_convert<ODataType>(acc_3z);
+        d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol] = type_convert<ODataType>(acc_3w);
         accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 1) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
         d_fp16_ptr[accVmStOffset+0 + accVmStOffsetInCol*2] = type_convert<ODataType>(acc_18x);
         d_fp16_ptr[accVmStOffset+1 + accVmStOffsetInCol*2] = type_convert<ODataType>(acc_18y);
@@ -1169,6 +1109,16 @@ struct Flatmm_ff_128x256x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x256x128_1
         d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol*3] = type_convert<ODataType>(acc_19z);
         d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol*3] = type_convert<ODataType>(acc_19w);
 
+        if(accVmStRowIdx + accVmStOffsetInRow * 2 >= M) goto RTN;
+        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 2) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
+        d_fp16_ptr[accVmStOffset+0] = type_convert<ODataType>(acc_4x);
+        d_fp16_ptr[accVmStOffset+1] = type_convert<ODataType>(acc_4y);
+        d_fp16_ptr[accVmStOffset+2] = type_convert<ODataType>(acc_4z);
+        d_fp16_ptr[accVmStOffset+3] = type_convert<ODataType>(acc_4w);
+        d_fp16_ptr[accVmStOffset+0 + accVmStOffsetInCol] = type_convert<ODataType>(acc_5x);
+        d_fp16_ptr[accVmStOffset+1 + accVmStOffsetInCol] = type_convert<ODataType>(acc_5y);
+        d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol] = type_convert<ODataType>(acc_5z);
+        d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol] = type_convert<ODataType>(acc_5w);
         accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 2) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
         d_fp16_ptr[accVmStOffset+0 + accVmStOffsetInCol*2] = type_convert<ODataType>(acc_20x);
         d_fp16_ptr[accVmStOffset+1 + accVmStOffsetInCol*2] = type_convert<ODataType>(acc_20y);
@@ -1179,6 +1129,16 @@ struct Flatmm_ff_128x256x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x256x128_1
         d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol*3] = type_convert<ODataType>(acc_21z);
         d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol*3] = type_convert<ODataType>(acc_21w);
 
+        if(accVmStRowIdx + accVmStOffsetInRow * 3 >= M) goto RTN;
+        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 3) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
+        d_fp16_ptr[accVmStOffset+0] = type_convert<ODataType>(acc_6x);
+        d_fp16_ptr[accVmStOffset+1] = type_convert<ODataType>(acc_6y);
+        d_fp16_ptr[accVmStOffset+2] = type_convert<ODataType>(acc_6z);
+        d_fp16_ptr[accVmStOffset+3] = type_convert<ODataType>(acc_6w);
+        d_fp16_ptr[accVmStOffset+0 + accVmStOffsetInCol] = type_convert<ODataType>(acc_7x);
+        d_fp16_ptr[accVmStOffset+1 + accVmStOffsetInCol] = type_convert<ODataType>(acc_7y);
+        d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol] = type_convert<ODataType>(acc_7z);
+        d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol] = type_convert<ODataType>(acc_7w);
         accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 3) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
         d_fp16_ptr[accVmStOffset+0 + accVmStOffsetInCol*2] = type_convert<ODataType>(acc_22x);
         d_fp16_ptr[accVmStOffset+1 + accVmStOffsetInCol*2] = type_convert<ODataType>(acc_22y);
@@ -1189,6 +1149,16 @@ struct Flatmm_ff_128x256x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x256x128_1
         d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol*3] = type_convert<ODataType>(acc_23z);
         d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol*3] = type_convert<ODataType>(acc_23w);
 
+        if(accVmStRowIdx + accVmStOffsetInRow * 4 >= M) goto RTN;
+        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 4) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
+        d_fp16_ptr[accVmStOffset+0] = type_convert<ODataType>(acc_8x);
+        d_fp16_ptr[accVmStOffset+1] = type_convert<ODataType>(acc_8y);
+        d_fp16_ptr[accVmStOffset+2] = type_convert<ODataType>(acc_8z);
+        d_fp16_ptr[accVmStOffset+3] = type_convert<ODataType>(acc_8w);
+        d_fp16_ptr[accVmStOffset+0 + accVmStOffsetInCol] = type_convert<ODataType>(acc_9x);
+        d_fp16_ptr[accVmStOffset+1 + accVmStOffsetInCol] = type_convert<ODataType>(acc_9y);
+        d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol] = type_convert<ODataType>(acc_9z);
+        d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol] = type_convert<ODataType>(acc_9w);
         accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 4) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
         d_fp16_ptr[accVmStOffset+0 + accVmStOffsetInCol*2] = type_convert<ODataType>(acc_24x);
         d_fp16_ptr[accVmStOffset+1 + accVmStOffsetInCol*2] = type_convert<ODataType>(acc_24y);
@@ -1199,6 +1169,16 @@ struct Flatmm_ff_128x256x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x256x128_1
         d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol*3] = type_convert<ODataType>(acc_25z);
         d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol*3] = type_convert<ODataType>(acc_25w);
 
+        if(accVmStRowIdx + accVmStOffsetInRow * 5 >= M) goto RTN;
+        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 5) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
+        d_fp16_ptr[accVmStOffset+0] = type_convert<ODataType>(acc_10x);
+        d_fp16_ptr[accVmStOffset+1] = type_convert<ODataType>(acc_10y);
+        d_fp16_ptr[accVmStOffset+2] = type_convert<ODataType>(acc_10z);
+        d_fp16_ptr[accVmStOffset+3] = type_convert<ODataType>(acc_10w);
+        d_fp16_ptr[accVmStOffset+0 + accVmStOffsetInCol] = type_convert<ODataType>(acc_11x);
+        d_fp16_ptr[accVmStOffset+1 + accVmStOffsetInCol] = type_convert<ODataType>(acc_11y);
+        d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol] = type_convert<ODataType>(acc_11z);
+        d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol] = type_convert<ODataType>(acc_11w);
         accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 5) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
         d_fp16_ptr[accVmStOffset+0 + accVmStOffsetInCol*2] = type_convert<ODataType>(acc_26x);
         d_fp16_ptr[accVmStOffset+1 + accVmStOffsetInCol*2] = type_convert<ODataType>(acc_26y);
@@ -1209,6 +1189,16 @@ struct Flatmm_ff_128x256x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x256x128_1
         d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol*3] = type_convert<ODataType>(acc_27z);
         d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol*3] = type_convert<ODataType>(acc_27w);
 
+        if(accVmStRowIdx + accVmStOffsetInRow * 6 >= M) goto RTN;
+        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 6) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
+        d_fp16_ptr[accVmStOffset+0] = type_convert<ODataType>(acc_12x);
+        d_fp16_ptr[accVmStOffset+1] = type_convert<ODataType>(acc_12y);
+        d_fp16_ptr[accVmStOffset+2] = type_convert<ODataType>(acc_12z);
+        d_fp16_ptr[accVmStOffset+3] = type_convert<ODataType>(acc_12w);
+        d_fp16_ptr[accVmStOffset+0 + accVmStOffsetInCol] = type_convert<ODataType>(acc_13x);
+        d_fp16_ptr[accVmStOffset+1 + accVmStOffsetInCol] = type_convert<ODataType>(acc_13y);
+        d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol] = type_convert<ODataType>(acc_13z);
+        d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol] = type_convert<ODataType>(acc_13w);
         accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 6) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
         d_fp16_ptr[accVmStOffset+0 + accVmStOffsetInCol*2] = type_convert<ODataType>(acc_28x);
         d_fp16_ptr[accVmStOffset+1 + accVmStOffsetInCol*2] = type_convert<ODataType>(acc_28y);
@@ -1219,6 +1209,16 @@ struct Flatmm_ff_128x256x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x256x128_1
         d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol*3] = type_convert<ODataType>(acc_29z);
         d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol*3] = type_convert<ODataType>(acc_29w);
 
+        if(accVmStRowIdx + accVmStOffsetInRow * 7 >= M) goto RTN;
+        accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 7) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
+        d_fp16_ptr[accVmStOffset+0] = type_convert<ODataType>(acc_14x);
+        d_fp16_ptr[accVmStOffset+1] = type_convert<ODataType>(acc_14y);
+        d_fp16_ptr[accVmStOffset+2] = type_convert<ODataType>(acc_14z);
+        d_fp16_ptr[accVmStOffset+3] = type_convert<ODataType>(acc_14w);
+        d_fp16_ptr[accVmStOffset+0 + accVmStOffsetInCol] = type_convert<ODataType>(acc_15x);
+        d_fp16_ptr[accVmStOffset+1 + accVmStOffsetInCol] = type_convert<ODataType>(acc_15y);
+        d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol] = type_convert<ODataType>(acc_15z);
+        d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol] = type_convert<ODataType>(acc_15w);
         accVmStOffset = (accVmStRowIdx + accVmStOffsetInRow * 7) * N + accVmStCol4Idx * 4 + vmAccBlkColIdx;
         d_fp16_ptr[accVmStOffset+0 + accVmStOffsetInCol*2] = type_convert<ODataType>(acc_30x);
         d_fp16_ptr[accVmStOffset+1 + accVmStOffsetInCol*2] = type_convert<ODataType>(acc_30y);
@@ -1229,6 +1229,7 @@ struct Flatmm_ff_128x256x128_1x4x1_16x16x32_FP8 : public Flatmm_ff_128x256x128_1
         d_fp16_ptr[accVmStOffset+2 + accVmStOffsetInCol*3] = type_convert<ODataType>(acc_31z);
         d_fp16_ptr[accVmStOffset+3 + accVmStOffsetInCol*3] = type_convert<ODataType>(acc_31w);
         
+RTN:
         return nullptr;
     }
 };
