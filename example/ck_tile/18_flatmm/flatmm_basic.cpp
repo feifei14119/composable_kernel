@@ -23,12 +23,12 @@ float flatmm_calc(const ck_tile::FlatmmHostArgs& args, const ck_tile::stream_con
     constexpr int kBlockPerCu = 1;
 
     // This part comes from the Codegen
-    constexpr ck_tile::index_t M_Tile = 128;
+    constexpr ck_tile::index_t M_Tile = 32;
     constexpr ck_tile::index_t N_Tile = 128;
     constexpr ck_tile::index_t K_Tile = 64;
 
-    constexpr ck_tile::index_t M_Warp = 2;
-    constexpr ck_tile::index_t N_Warp = 2;
+    constexpr ck_tile::index_t M_Warp = 1;
+    constexpr ck_tile::index_t N_Warp = 4;
     constexpr ck_tile::index_t K_Warp = 1;
 
     constexpr ck_tile::index_t M_Warp_Tile = 32;
@@ -50,18 +50,20 @@ float flatmm_calc(const ck_tile::FlatmmHostArgs& args, const ck_tile::stream_con
                                                                 CodegenFlatmmShape,
                                                                 CodegenGemmTraits>;
     using GemmEpilogue           = ck_tile::CShuffleEpilogue<
-                  ck_tile::CShuffleEpilogueProblem<AccDataType,
-                                                   CDataType,
-                                                   CLayout,
-                                                   CodegenPipelineProblem::kBlockSize,
-                                                   TilePartitioner::MPerBlock,
-                                                   TilePartitioner::NPerBlock,
-                                                   M_Warp,
-                                                   N_Warp,
-                                                   M_Warp_Tile,
-                                                   N_Warp_Tile,
-                                                   K_Warp_Tile,
-                                                   CodegenPipelineProblem::TransposeC>>;
+        ck_tile::CShuffleEpilogueProblem<ADataType,
+                                            BDataType,
+                                            AccDataType,
+                                            CDataType,
+                                            CLayout,
+                                            CodegenPipelineProblem::kBlockSize,
+                                            TilePartitioner::MPerBlock,
+                                            TilePartitioner::NPerBlock,
+                                            M_Warp,
+                                            N_Warp,
+                                            M_Warp_Tile,
+                                            N_Warp_Tile,
+                                            K_Warp_Tile,
+                                            CodegenPipelineProblem::TransposeC>>;
 
     using CodegenFlatmmPolicy = ck_tile::UniversalFlatmmPipelineAgBgCrPolicy;
     using CodegenFlatmmPipeline =

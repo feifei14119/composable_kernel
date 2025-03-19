@@ -72,6 +72,7 @@ struct FlatmmPipelineAGmemBGmemCRegV1
         return PipelinePolicy::template GetSmemSize<Problem>();
     }
 
+    // ================================================================================================
     template <typename ADramBlockWindowTmp,
               typename BFlatBlockWindowTmp,
               typename AElementFunction
@@ -139,23 +140,14 @@ struct FlatmmPipelineAGmemBGmemCRegV1
             dbg_f16[gid * DEBUG_CNT + i]  = ck_tile::type_convert<ck_tile::half_t>(1.0f);
         }
 #endif
-        static_assert(
-            std::is_same_v<ADataType, remove_cvref_t<typename ADramBlockWindowTmp::DataType>>,
-            "wrong!");
-
-        static_assert(kMPerBlock == ADramBlockWindowTmp{}.get_window_lengths()[number<0>{}],
-                      "wrong!");
-        // static_assert(kNPerBlock == BDramBlockWindowTmp{}.get_window_lengths()[number<0>{}],
-        //               "wrong!");
-        static_assert(kKPerBlock == ADramBlockWindowTmp{}.get_window_lengths()[number<1>{}],
-                      "wrong!");
+        static_assert(std::is_same_v<ADataType, remove_cvref_t<typename ADramBlockWindowTmp::DataType>>, "wrong!");
+        static_assert(kMPerBlock == ADramBlockWindowTmp{}.get_window_lengths()[number<0>{}], "wrong!");
+        // static_assert(kNPerBlock == BDramBlockWindowTmp{}.get_window_lengths()[number<0>{}], "wrong!");
+        static_assert(kKPerBlock == ADramBlockWindowTmp{}.get_window_lengths()[number<1>{}], "wrong!");
 
         // A tile in LDS
         ADataType* p_a_lds = static_cast<ADataType*>(p_smem);
-
-        constexpr auto a_lds_block_desc =
-            PipelinePolicy::template MakeALdsBlockDescriptor<Problem>();
-
+        constexpr auto a_lds_block_desc = PipelinePolicy::template MakeALdsBlockDescriptor<Problem>();
         auto a_lds_block = make_tensor_view<address_space_enum::lds>(p_a_lds, a_lds_block_desc);
 
         // A DRAM tile window for load
@@ -166,25 +158,20 @@ struct FlatmmPipelineAGmemBGmemCRegV1
                              PipelinePolicy::template MakeADramTileDistribution<Problem>());
 
         // A LDS tile window for store
-        auto a_copy_lds_window = make_tile_window(
-            a_lds_block, make_tuple(number<kMPerBlock>{}, number<kKPerBlock>{}), {0, 0});
+        auto a_copy_lds_window = make_tile_window(a_lds_block, make_tuple(number<kMPerBlock>{}, number<kKPerBlock>{}), {0, 0});
 
         // A LDS tile for block GEMM
-        auto a_lds_gemm_window = make_tile_window(
-            a_lds_block, make_tuple(number<kMPerBlock>{}, number<kKPerBlock>{}), {0, 0});
+        auto a_lds_gemm_window = make_tile_window(a_lds_block, make_tuple(number<kMPerBlock>{}, number<kKPerBlock>{}), {0, 0});
 
 #ifdef FEIFEI_DEBUG
         constexpr index_t a_lds_block_space_size_aligned =
             integer_divide_ceil(sizeof(ADataType) * a_lds_block_desc.get_element_space_size(),
                                 kLdsAlignmentInBytes) *
             kLdsAlignmentInBytes;
+
         // B tile in LDS
-        BDataType* p_b_lds = static_cast<BDataType*>(
-            static_cast<void*>(static_cast<char*>(p_smem) + a_lds_block_space_size_aligned));
-
-        constexpr auto b_lds_block_desc =
-            PipelinePolicy::template MakeBLdsBlockDescriptor<Problem>();
-
+        BDataType* p_b_lds = static_cast<BDataType*>(static_cast<void*>(static_cast<char*>(p_smem) + a_lds_block_space_size_aligned));
+        constexpr auto b_lds_block_desc = PipelinePolicy::template MakeBLdsBlockDescriptor<Problem>();
         auto b_lds_block = make_tensor_view<address_space_enum::lds>(p_b_lds, b_lds_block_desc);
 
         // B DRAM tile window for load
@@ -195,21 +182,18 @@ struct FlatmmPipelineAGmemBGmemCRegV1
                              PipelinePolicy::template MakeBDramTileDistribution<Problem>());
 
         // B LDS tile window for store
-        auto b_copy_lds_window = make_tile_window(
-            b_lds_block, make_tuple(number<kNPerBlock>{}, number<kKPerBlock>{}), {0, 0});
+        auto b_copy_lds_window = make_tile_window(b_lds_block, make_tuple(number<kNPerBlock>{}, number<kKPerBlock>{}), {0, 0});
 
         // B LDS tile for block GEMM
-        auto b_lds_gemm_window = make_tile_window(
-            b_lds_block, make_tuple(number<kNPerBlock>{}, number<kKPerBlock>{}), {0, 0});
+        auto b_lds_gemm_window = make_tile_window(b_lds_block, make_tuple(number<kNPerBlock>{}, number<kKPerBlock>{}), {0, 0});
 #endif
 
         // Block GEMM
         auto block_flatmm = BlockFlatmm();
 
         // B flat DRAM window for load
-        auto b_flat_distribution =
-            PipelinePolicy::template MakeBFlatDramTileDistribution<Problem>();
-        auto b_flat_dram_window = // tile_window_with_static_distribution
+        auto b_flat_distribution = PipelinePolicy::template MakeBFlatDramTileDistribution<Problem>();
+        auto b_flat_dram_window =
             make_tile_window(
                 b_flat_dram_block_window_tmp.get_bottom_tensor_view(), // from kernel gemm_pad_views
                 make_tuple(number<flatNPerWarp>{}, number<flatKPerWarp>{}),
@@ -217,17 +201,8 @@ struct FlatmmPipelineAGmemBGmemCRegV1
                 b_flat_distribution);
 
         // Acc register tile
-        auto c_block_tile = decltype(block_flatmm(a_lds_gemm_window,
-                                                  b_flat_dram_window
-#ifdef FEIFEI_DEBUG
-                                                  ,
-                                                  b_lds_gemm_window,
-                                                  dbg_int,
-                                                  dbg_fp32,
-                                                  dbg_f168
-#endif
-                                                  )){};
-
+        auto c_block_tile = block_flatmm.MakeCBlockTile();
+        
         // prefetch
         // global read 0
         auto a_block_tile = load_tile(a_copy_dram_window);
@@ -281,8 +256,7 @@ struct FlatmmPipelineAGmemBGmemCRegV1
             // LDS write 0
             if constexpr(std::is_same_v<ALayout, tensor_layout::gemm::ColumnMajor>)
             {
-                auto a_shuffle_tmp = make_static_distributed_tensor<ADataType>(
-                    PipelinePolicy::template MakeShuffledARegBlockDistribution<Problem>());
+                auto a_shuffle_tmp = make_static_distributed_tensor<ADataType>(PipelinePolicy::template MakeShuffledARegBlockDistribution<Problem>());
                 shuffle_tile(a_shuffle_tmp, a_block_tile);
                 const auto a_block_tile_tmp = tile_elementwise_in(a_element_func, a_shuffle_tmp);
                 store_tile(a_copy_lds_window, a_block_tile_tmp);
@@ -297,8 +271,7 @@ struct FlatmmPipelineAGmemBGmemCRegV1
             // LDS write 0
             if constexpr(std::is_same_v<BLayout, tensor_layout::gemm::RowMajor>)
             {
-                auto b_shuffle_tmp = make_static_distributed_tensor<BDataType>(
-                    PipelinePolicy::template MakeShuffledBRegBlockDistribution<Problem>());
+                auto b_shuffle_tmp = make_static_distributed_tensor<BDataType>(PipelinePolicy::template MakeShuffledBRegBlockDistribution<Problem>());
                 shuffle_tile(b_shuffle_tmp, b_block_tile);
                 const auto b_block_tile_tmp = tile_elementwise_in(b_element_func, b_shuffle_tmp);
                 store_tile(b_copy_lds_window, b_block_tile_tmp);
@@ -315,6 +288,7 @@ struct FlatmmPipelineAGmemBGmemCRegV1
         {
             // global read i + 1
             a_block_tile = load_tile(a_copy_dram_window);
+
 #ifdef FEIFEI_DEBUG
             b_block_tile = load_tile(b_copy_dram_window);
 #endif
@@ -389,6 +363,7 @@ struct FlatmmPipelineAGmemBGmemCRegV1
         return c_block_tile;
     }
 
+    // ================================================================================================
     template <typename ADramBlockWindowTmp,
               typename BFlatBlockWindowTmp
 #ifdef FEIFEI_DEBUG

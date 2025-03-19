@@ -65,9 +65,9 @@ auto calculate_rtol_atol(const ck_tile::index_t K,
 }
 
 template <typename ALayout, typename BLayout, typename CLayout>
-float invoke_flatmm(ck_tile::DeviceMem& a_m_k_dev_buf,
+float invoke_flatmm(ck_tile::DeviceMem& a_dev_buf,
                     ck_tile::DeviceMem& b_shuffle_dev_buf,
-                    ck_tile::DeviceMem& c_m_n_dev_buf,
+                    ck_tile::DeviceMem& c_dev_buf,
                     ck_tile::index_t M,
                     ck_tile::index_t N,
                     ck_tile::index_t K,
@@ -79,7 +79,7 @@ float invoke_flatmm(ck_tile::DeviceMem& a_m_k_dev_buf,
                     int n_repeat
 #ifdef FEIFEI_DEBUG
                     ,
-                    ck_tile::DeviceMem& b_k_n_dev_buf,
+                    ck_tile::DeviceMem& b_origin_dev_buf,
                     ck_tile::DeviceMem& dbg_int_buf,
                     ck_tile::DeviceMem& dbg_fp32_buf,
                     ck_tile::DeviceMem& dbg_f168_buf
@@ -87,9 +87,9 @@ float invoke_flatmm(ck_tile::DeviceMem& a_m_k_dev_buf,
 )
 {
     ck_tile::FlatmmHostArgs args;
-    args.a_ptr         = a_m_k_dev_buf.GetDeviceBuffer();
+    args.a_ptr         = a_dev_buf.GetDeviceBuffer();
     args.b_shuffle_ptr = b_shuffle_dev_buf.GetDeviceBuffer();
-    args.c_ptr         = c_m_n_dev_buf.GetDeviceBuffer();
+    args.c_ptr         = c_dev_buf.GetDeviceBuffer();
 
     args.k_batch  = kbatch;
     args.M        = M;
@@ -100,7 +100,7 @@ float invoke_flatmm(ck_tile::DeviceMem& a_m_k_dev_buf,
     args.stride_C = stride_C;
 
 #ifdef FEIFEI_DEBUG
-    args.b_ptr        = b_k_n_dev_buf.GetDeviceBuffer();
+    args.b_ptr        = b_origin_dev_buf.GetDeviceBuffer();
     args.dbg_int_ptr  = dbg_int_buf.GetDeviceBuffer();
     args.dbg_fp32_ptr = dbg_fp32_buf.GetDeviceBuffer();
     args.dbg_f168_ptr = dbg_f168_buf.GetDeviceBuffer();
@@ -163,22 +163,24 @@ int run_flatmm_example_with_layouts(int argc,
     stride_B = ck_tile::get_default_stride(K, N, stride_B, is_row_major(b_layout));
     stride_C = ck_tile::get_default_stride(M, N, stride_C, is_row_major(CLayout{}));
 
-    ck_tile::HostTensor<ADataType> a_m_k(
+    ck_tile::HostTensor<ADataType> a_host(
         ck_tile::host_tensor_descriptor(M, K, stride_A, is_row_major(a_layout)));
-    ck_tile::HostTensor<BDataType> b_k_n(
+    ck_tile::HostTensor<BDataType> b_origin_host(
         ck_tile::host_tensor_descriptor(K, N, stride_B, is_row_major(b_layout)));
-    ck_tile::HostTensor<CDataType> c_m_n_dev_result(
+    ck_tile::HostTensor<CDataType> c_rslt_host(
         ck_tile::host_tensor_descriptor(M, N, stride_C, is_row_major(CLayout{})));
 
     // TODO: add different init types
-    ck_tile::FillUniformDistribution<ADataType>{-5.f, 5.f}(a_m_k);
-    ck_tile::FillUniformDistribution<BDataType>{-5.f, 5.f}(b_k_n);
+    ck_tile::FillUniformDistribution<ADataType>{-5.f, 5.f}(a_host);
+    ck_tile::FillUniformDistribution<BDataType>{-5.f, 5.f}(b_origin_host);
 
-    ck_tile::DeviceMem a_m_k_dev_buf(a_m_k.get_element_space_size_in_bytes());
-    ck_tile::DeviceMem b_k_n_dev_buf(b_k_n.get_element_space_size_in_bytes());
-    ck_tile::DeviceMem c_m_n_dev_buf(c_m_n_dev_result.get_element_space_size_in_bytes());
+    ck_tile::DeviceMem a_dev_buf(a_host.get_element_space_size_in_bytes());
+    ck_tile::DeviceMem c_dev_buf(c_rslt_host.get_element_space_size_in_bytes());
 
 #ifdef FEIFEI_DEBUG
+    ck_tile::DeviceMem b_origin_dev_buf(b_origin_host.get_element_space_size_in_bytes());
+    b_origin_dev_buf.ToDevice(b_origin_host.data());
+
     ck_tile::HostTensor<int> dbg_int({M * N * DEBUG_CNT});
     ck_tile::HostTensor<float> dbg_fp32({M * N * DEBUG_CNT});
     ck_tile::HostTensor<ADataType> dbg_f168({M * N * DEBUG_CNT});
@@ -188,20 +190,18 @@ int run_flatmm_example_with_layouts(int argc,
     ck_tile::DeviceMem dbg_f168_buf(dbg_f168.get_element_space_size_in_bytes());
 #endif
 
-    a_m_k_dev_buf.ToDevice(a_m_k.data());
-    b_k_n_dev_buf.ToDevice(b_k_n.data());
-    c_m_n_dev_buf.SetZero();
-    c_m_n_dev_result.SetZero();
+    a_dev_buf.ToDevice(a_host.data());
+    c_rslt_host.SetZero();
 
     // do pre-shuffle
     std::string mfma                              = arg_parser.get_str("prec");
-    ck_tile::HostTensor<BDataType> b_shuffle_host = shuffle_b(b_k_n, mfma, 0);
+    ck_tile::HostTensor<BDataType> b_shuffle_host = shuffle_b(b_origin_host, mfma, 0);
     ck_tile::DeviceMem b_shuffle_dev_buf(b_shuffle_host.get_element_space_size_in_bytes());
     b_shuffle_dev_buf.ToDevice(b_shuffle_host.data());
 
-    invoke_flatmm<ALayout, BLayout, CLayout>(a_m_k_dev_buf,
+    invoke_flatmm<ALayout, BLayout, CLayout>(a_dev_buf,
                                              b_shuffle_dev_buf,
-                                             c_m_n_dev_buf,
+                                             c_dev_buf,
                                              M,
                                              N,
                                              K,
@@ -213,29 +213,29 @@ int run_flatmm_example_with_layouts(int argc,
                                              n_repeat
 #ifdef FEIFEI_DEBUG
                                              ,
-                                             b_k_n_dev_buf,
+                                             b_origin_dev_buf,
                                              dbg_int_buf,
                                              dbg_fp32_buf,
                                              dbg_f168_buf
 #endif
     );
 
-    c_m_n_dev_buf.FromDevice(c_m_n_dev_result.data());
+    c_dev_buf.FromDevice(c_rslt_host.data());
     bool pass = true;
 
     if(arg_parser.get_int("v") == 1)
     {
-        ck_tile::HostTensor<CDataType> c_m_n_host_ref(
+        ck_tile::HostTensor<CDataType> c_ref_host(
             ck_tile::host_tensor_descriptor(M, N, stride_C, is_row_major(CLayout{})));
-        c_m_n_host_ref.SetZero();
+        c_ref_host.SetZero();
 
         ck_tile::reference_gemm<ADataType, BDataType, AccDataType, CDataType>(
-            a_m_k, b_k_n, c_m_n_host_ref);
+            a_host, b_origin_host, c_ref_host);
         const float max_accumulated_value =
-            *std::max_element(c_m_n_host_ref.mData.begin(), c_m_n_host_ref.mData.end());
+            *std::max_element(c_ref_host.mData.begin(), c_ref_host.mData.end());
         const auto rtol_atol = calculate_rtol_atol(K, kbatch, max_accumulated_value);
-        pass                 = ck_tile::check_err(c_m_n_dev_result,
-                                  c_m_n_host_ref,
+        pass                 = ck_tile::check_err(c_rslt_host,
+                                  c_ref_host,
                                   "Error: Incorrect results!",
                                   rtol_atol.at(ck_tile::number<0>{}),
                                   rtol_atol.at(ck_tile::number<1>{}));
@@ -262,7 +262,7 @@ int run_flatmm_example_with_layouts(int argc,
                         file << "\n [" << x << " : " << x + 63 << "]: ";
                     }
                     int idx = X * y + x;
-                    file << ck_tile::type_convert<float>(c_m_n_host_ref.mData[idx]) << ", ";
+                    file << ck_tile::type_convert<float>(c_ref_host.mData[idx]) << ", ";
                 }
             }
 
@@ -272,11 +272,16 @@ int run_flatmm_example_with_layouts(int argc,
     }
     else if(arg_parser.get_int("v") == 2)
     {
-        ck_tile::HostTensor<CDataType> c_m_n_gpu_ref(
+#ifndef FEIFEI_DEBUG
+        ck_tile::DeviceMem b_origin_dev_buf(b_origin_host.get_element_space_size_in_bytes());
+        b_origin_dev_buf.ToDevice(b_origin_host.data());
+#endif        
+
+        ck_tile::HostTensor<CDataType> c_gpu_ref_host(
             ck_tile::host_tensor_descriptor(M, N, stride_C, is_row_major(CLayout{})));
-        ck_tile::DeviceMem c_m_n_gpu_buf_ref(c_m_n_gpu_ref.get_element_space_size_in_bytes());
-        c_m_n_gpu_ref.SetZero();
-        c_m_n_gpu_buf_ref.SetZero();
+        ck_tile::DeviceMem c_gpu_ref_dev_buf(c_gpu_ref_host.get_element_space_size_in_bytes());
+        c_gpu_ref_host.SetZero();
+        c_gpu_ref_dev_buf.SetZero();
 
         ADataType* d_A;
         BDataType* d_B;
@@ -287,11 +292,11 @@ int run_flatmm_example_with_layouts(int argc,
         ck_tile::hip_check_error(hipMalloc(&d_C, M * N * sizeof(CDataType)));
 
         ck_tile::hip_check_error(hipMemcpy(d_A,
-                                           a_m_k_dev_buf.GetDeviceBuffer(),
+                                           a_dev_buf.GetDeviceBuffer(),
                                            M * K * sizeof(ADataType),
                                            hipMemcpyHostToDevice));
         ck_tile::hip_check_error(hipMemcpy(d_B,
-                                           b_k_n_dev_buf.GetDeviceBuffer(),
+                                           b_origin_dev_buf.GetDeviceBuffer(),
                                            N * K * sizeof(BDataType),
                                            hipMemcpyHostToDevice));
 
@@ -303,7 +308,7 @@ int run_flatmm_example_with_layouts(int argc,
                                     BLayout,
                                     CLayout>(d_A, d_B, d_C, M, N, K, stride_A, stride_B, stride_C);
 
-        ck_tile::hip_check_error(hipMemcpy(c_m_n_gpu_buf_ref.GetDeviceBuffer(),
+        ck_tile::hip_check_error(hipMemcpy(c_gpu_ref_dev_buf.GetDeviceBuffer(),
                                            d_C,
                                            M * N * sizeof(CDataType),
                                            hipMemcpyDeviceToHost));
@@ -312,12 +317,12 @@ int run_flatmm_example_with_layouts(int argc,
         ck_tile::hip_check_error(hipFree(d_B));
         ck_tile::hip_check_error(hipFree(d_C));
 
-        c_m_n_gpu_buf_ref.FromDevice(c_m_n_gpu_ref.data());
+        c_gpu_ref_dev_buf.FromDevice(c_gpu_ref_host.data());
         const float max_accumulated_value =
-            *std::max_element(c_m_n_gpu_ref.mData.begin(), c_m_n_gpu_ref.mData.end());
+            *std::max_element(c_gpu_ref_host.mData.begin(), c_gpu_ref_host.mData.end());
         const auto rtol_atol = calculate_rtol_atol(K, kbatch, max_accumulated_value);
-        pass                 = ck_tile::check_err(c_m_n_dev_result,
-                                  c_m_n_gpu_ref,
+        pass                 = ck_tile::check_err(c_rslt_host,
+                                  c_gpu_ref_host,
                                   "Error: Incorrect results!",
                                   rtol_atol.at(ck_tile::number<0>{}),
                                   rtol_atol.at(ck_tile::number<1>{}));
@@ -344,7 +349,7 @@ int run_flatmm_example_with_layouts(int argc,
                         file << "\n [" << x << " : " << x + 63 << "]: ";
                     }
                     int idx = X * y + x;
-                    file << ck_tile::type_convert<float>(c_m_n_gpu_ref.mData[idx]) << ", ";
+                    file << ck_tile::type_convert<float>(c_gpu_ref_host.mData[idx]) << ", ";
                 }
             }
 
@@ -378,18 +383,18 @@ int run_flatmm_example_with_layouts(int argc,
                     file << "\n [" << x << " : " << x + 15 << " ]: ";
                 }
 
-                file << ck_tile::type_convert<float>(a_m_k.mData[idx]) << ", ";
+                file << ck_tile::type_convert<float>(a_host.mData[idx]) << ", ";
             }
         }
 
         file.close();
     }
-    // b_host
+    // b_origin_host
     {
         std::ofstream file("ff_b_host.txt");
         int X = static_cast<int>(K);
         int Y = static_cast<int>(N);
-        file << " [b_host]: Row = " << Y << ", Col = " << X << std::endl;
+        file << " [b_origin_host]: Row = " << Y << ", Col = " << X << std::endl;
 
         for(int y = 0; y < Y; y++)
         {
@@ -402,7 +407,7 @@ int run_flatmm_example_with_layouts(int argc,
                     file << "\n [" << x << " : " << x + 15 << " ]: ";
                 }
 
-                file << ck_tile::type_convert<float>(b_k_n.mData[idx]) << ", ";
+                file << ck_tile::type_convert<float>(b_origin_host.mData[idx]) << ", ";
             }
         }
 
@@ -434,7 +439,7 @@ int run_flatmm_example_with_layouts(int argc,
     }
     // c_dev ---> kernel
     {
-        auto c_dev = c_m_n_dev_buf.ToHost<CDataType>();
+        auto c_dev = c_dev_buf.ToHost<CDataType>();
         std::ofstream file("ff_c_dev_kernel.txt");
         file << " [c_dev]: Grid = [" << GridDimX << ", " << GridDimY << "], Block = " << BlockSize
              << std::endl;
@@ -460,7 +465,7 @@ int run_flatmm_example_with_layouts(int argc,
     // c_dev
     {
         // auto d_dev = d_buf.ToHost<float>();
-        auto c_dev = c_m_n_dev_buf.ToHost<CDataType>();
+        auto c_dev = c_dev_buf.ToHost<CDataType>();
         std::ofstream file("ff_c_dev.txt");
         int X = static_cast<int>(N);
         int Y = static_cast<int>(M);
@@ -699,24 +704,10 @@ int run_flatmm_example(int argc, char* argv[])
     std::string a_layout = arg_parser.get_str("a_layout");
     std::string b_layout = arg_parser.get_str("b_layout");
 
-    if(a_layout == "R" && b_layout == "R")
-    {
-        return run_flatmm_example_with_layouts(argc, argv, Row{}, Row{}, Row{});
-    }
-    else if(a_layout == "R" && b_layout == "C")
+    if(a_layout == "R" && b_layout == "C")
     {
         return run_flatmm_example_with_layouts(argc, argv, Row{}, Col{}, Row{});
     }
-    // TODO: Fixme: with latest changes to GemmPipelineAGmemBGmemCRegV1DefaultPolicy below do not
-    // work.
-    // else if(a_layout == "C" && b_layout == "C")
-    // {
-    //     return run_flatmm_example_with_layouts(argc, argv, Col{}, Col{}, Row{});
-    // }
-    // else if(a_layout == "C" && b_layout == "R")
-    // {
-    //     return run_flatmm_example_with_layouts(argc, argv, Col{}, Row{}, Row{});
-    // }
     else
     {
         throw std::runtime_error("Unsupported data layout configuration for A,B and C tensors!");
