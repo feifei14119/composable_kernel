@@ -199,6 +199,7 @@ struct FlatmmPipelineAGmemBGmemCRegV1
                 make_tuple(number<flatNPerWarp>{}, number<flatKPerWarp>{}),
                 b_flat_dram_block_window_tmp.get_window_origin(),
                 b_flat_distribution);
+        auto b_flat_dram_window_next = b_flat_dram_window;
 
         // Acc register tile
         auto c_block_tile = block_flatmm.MakeCBlockTile();
@@ -206,6 +207,8 @@ struct FlatmmPipelineAGmemBGmemCRegV1
         // prefetch
         // global read 0
         auto a_block_tile = load_tile(a_copy_dram_window);
+
+        auto b_flat_block_tile = load_tile(b_flat_dram_window);
 
 #ifdef FEIFEI_DEBUG
         auto b_block_tile = load_tile(b_copy_dram_window);
@@ -289,6 +292,8 @@ struct FlatmmPipelineAGmemBGmemCRegV1
             // global read i + 1
             a_block_tile = load_tile(a_copy_dram_window);
 
+            move_tile_window(b_flat_dram_window_next, {0, BlockGemmShape::flatKPerBlock});
+
 #ifdef FEIFEI_DEBUG
             b_block_tile = load_tile(b_copy_dram_window);
 #endif
@@ -298,7 +303,9 @@ struct FlatmmPipelineAGmemBGmemCRegV1
             // GEMM i
             block_flatmm(c_block_tile,
                          a_lds_gemm_window,
-                         b_flat_dram_window
+                         b_flat_dram_window,
+                         b_flat_dram_window_next,
+                         b_flat_block_tile
 #ifdef FEIFEI_DEBUG
                          ,
                          b_lds_gemm_window,
@@ -349,7 +356,9 @@ struct FlatmmPipelineAGmemBGmemCRegV1
             // GEMM num_loop - 1
             block_flatmm(c_block_tile,
                          a_lds_gemm_window,
-                         b_flat_dram_window
+                         b_flat_dram_window,
+                         b_flat_dram_window_next,
+                         b_flat_block_tile
 #ifdef FEIFEI_DEBUG
                          ,
                          b_lds_gemm_window,

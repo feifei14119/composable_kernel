@@ -76,8 +76,8 @@ auto create_args(int argc, char* argv[])
 {
     ck_tile::ArgParser arg_parser;
     arg_parser
-        .insert("m", "32", "m dimension") // 128, 3840
-        .insert("n", "128", "n dimension") // 128, 4096
+        .insert("m", "128", "m dimension") // 128, 3840
+        .insert("n", "256", "n dimension") // 128, 4096
         .insert("k", "128", "k dimension") // 64,  2048
         .insert("a_layout", "R", "A tensor data layout - Row by default")
         .insert("b_layout", "C", "B tensor data layout - Row by default")

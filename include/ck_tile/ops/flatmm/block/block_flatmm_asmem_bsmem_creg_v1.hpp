@@ -69,7 +69,9 @@ struct BlockFlatmmASmemBSmemCRegV1
     // C += A * B
     template <typename CBlockTensor,
               typename ABlockWindow,
-              typename BFlatBlockWindow
+              typename BFlatBlockWindow,
+              typename BFlatBlockWindowNext,
+              typename BFlatBlockTile
 #ifdef FEIFEI_DEBUG
               ,
               typename BOriginBlockWindow
@@ -77,7 +79,9 @@ struct BlockFlatmmASmemBSmemCRegV1
               >
     CK_TILE_DEVICE void operator()(CBlockTensor& c_block_tensor,
                                    const ABlockWindow& a_block_window,
-                                   const BFlatBlockWindow& b_flat_block_window
+                                   const BFlatBlockWindow& b_flat_block_window,
+                                   const BFlatBlockWindowNext& b_flat_block_window_next,
+                                   BFlatBlockTile& b_flat_block_tile
 #ifdef FEIFEI_DEBUG
                                    ,
                                    const BOriginBlockWindow& b_origin_block_window,
@@ -165,8 +169,13 @@ struct BlockFlatmmASmemBSmemCRegV1
                 move_tile_window(b_flat_warp_windows(nIter)(kIter), {nIter * NFlatPerBlockPerIter, kIter * KFlatPerBlockPerIter});
             });
         });
+        b_flat_warp_windows(number<0>{})(number<0>{}) = b_flat_block_window_next;
 
 #ifdef FEIFEI_DEBUG
+        if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
+        {
+            printf("[BLOCK ] MIterPerWarp = %d, NIterPerWarp = %d, KIterPerWarp = %d\n", MIterPerWarp, NIterPerWarp, KIterPerWarp);
+        }
         const index_t iNWarp = get_warp_id() % NWarp;
         // construct B-warp-window
         constexpr index_t NPerBlockOrigin = BOriginBlockWindow{}.get_window_lengths()[number<0>{}];
@@ -241,15 +250,26 @@ struct BlockFlatmmASmemBSmemCRegV1
         constexpr auto c_warp_y_lengths = to_sequence(CWarpDstr{}.get_ys_to_d_descriptor().get_lengths());
         constexpr auto c_warp_y_index_zeros = uniform_sequence_gen_t<CWarpDstr::NDimY, 0>{};
 
+        auto b_warp_tensor = b_flat_block_tile;
+        auto b_warp_tensor_next = b_flat_block_tile;
         // hot loop:
         static_for<0, KIterPerWarp, 1>{}([&](auto kIter) {
-            static_for<0, MIterPerWarp, 1>{}([&](auto mIter) {
-                // read A warp tensor from A block window
-                const auto a_warp_tensor = load_tile(a_warp_windows(mIter)(kIter));
+            static_for<0, NIterPerWarp, 1>{}([&](auto nIter) {
+                // read B warp tensor from B Block window
+                // b_warp_tensor = load_tile(b_warp_windows(nIter)(kIter));
 
-                static_for<0, NIterPerWarp, 1>{}([&](auto nIter) {
-                    // read B warp tensor from B Block window
-                    const auto b_warp_tensor = load_tile(b_warp_windows(nIter)(kIter));
+                constexpr auto nIterNext = nIter < NIterPerWarp - 1 ? nIter + 1 : 0;
+                constexpr auto kIterNext = nIter < NIterPerWarp - 1 ? kIter : (kIter < KIterPerWarp - 1 ? kIter + 1 : 0);
+                b_warp_tensor_next = load_tile(b_warp_windows(number<nIterNext>{})(number<kIterNext>{}));
+                if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
+                {
+                    printf("[BLOCK ] nIter = %d, kIter = %d, nIterNext = %d, kIterNext = %d\n",
+                        static_cast<int>(nIter), static_cast<int>(kIter), static_cast<int>(nIterNext), static_cast<int>(kIterNext));
+                }
+
+                static_for<0, MIterPerWarp, 1>{}([&](auto mIter) {
+                    // read A warp tensor from A block window
+                    const auto a_warp_tensor = load_tile(a_warp_windows(mIter)(kIter));
 
                     // read C warp tensor from C block tensor
                     CWarpTensor c_warp_tensor;
@@ -266,9 +286,13 @@ struct BlockFlatmmASmemBSmemCRegV1
                         merge_sequences(sequence<mIter, nIter>{}, c_warp_y_index_zeros),
                         merge_sequences(sequence<1, 1>{}, c_warp_y_lengths),
                         c_warp_tensor.get_thread_buffer());
+
                 });
+                
+                b_warp_tensor = b_warp_tensor_next;
             });
         });
+        b_flat_block_tile = b_warp_tensor_next;
     }
 
     // ================================================================================================

@@ -23,7 +23,7 @@ float flatmm_calc(const ck_tile::FlatmmHostArgs& args, const ck_tile::stream_con
     constexpr int kBlockPerCu = 1;
 
     // This part comes from the Codegen
-    constexpr ck_tile::index_t M_Tile = 32;
+    constexpr ck_tile::index_t M_Tile = 64;
     constexpr ck_tile::index_t N_Tile = 128;
     constexpr ck_tile::index_t K_Tile = 64;
 
