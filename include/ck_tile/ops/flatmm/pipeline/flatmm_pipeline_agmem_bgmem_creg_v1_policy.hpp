@@ -81,11 +81,12 @@ struct UniversalFlatmmPipelineAgBgCrPolicy
     template <typename Problem>
     CK_TILE_HOST_DEVICE static constexpr index_t GetSmemSize()
     {
-        constexpr index_t smem_size_a = GetSmemSizeA<Problem>();
-        constexpr index_t smem_size_b = GetSmemSizeB<Problem>();
-        constexpr index_t smem_size   = smem_size_a + smem_size_b;
+        // constexpr index_t smem_size_a = GetSmemSizeA<Problem>();
+        // constexpr index_t smem_size_b = GetSmemSizeB<Problem>();
+        // constexpr index_t smem_size   = smem_size_a + smem_size_b;
 
-        return smem_size;
+        constexpr index_t smem_size_a = GetSmemSizeA<Problem>();
+        return smem_size_a * 2;
     }
 
     template <typename Problem>

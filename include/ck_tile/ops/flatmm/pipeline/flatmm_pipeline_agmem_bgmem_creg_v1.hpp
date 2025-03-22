@@ -31,6 +31,7 @@ struct FlatmmPipelineAGmemBGmemCRegV1
 
     static constexpr index_t flatKPerWarp = BlockGemmShape::flatKPerWarp;
     static constexpr index_t flatNPerWarp = BlockGemmShape::flatNPerWarp;
+    static constexpr index_t flatKPerBlock = BlockGemmShape::flatKPerBlock;
 
     static constexpr index_t GetVectorSizeA() { return Problem::VectorSizeA; }
     static constexpr index_t GetVectorSizeB() { return Problem::VectorSizeB; }
@@ -146,9 +147,11 @@ struct FlatmmPipelineAGmemBGmemCRegV1
         static_assert(kKPerBlock == ADramBlockWindowTmp{}.get_window_lengths()[number<1>{}], "wrong!");
 
         // A tile in LDS
-        ADataType* p_a_lds = static_cast<ADataType*>(p_smem);
+        ADataType* p_a_lds0 = static_cast<ADataType*>(p_smem);
+        ADataType* p_a_lds1 = p_a_lds0 + PipelinePolicy::template GetSmemSizeA<Problem>() / sizeof(ADataType);
         constexpr auto a_lds_block_desc = PipelinePolicy::template MakeALdsBlockDescriptor<Problem>();
-        auto a_lds_block = make_tensor_view<address_space_enum::lds>(p_a_lds, a_lds_block_desc);
+        auto a_lds_block0 = make_tensor_view<address_space_enum::lds>(p_a_lds0, a_lds_block_desc);
+        auto a_lds_block1 = make_tensor_view<address_space_enum::lds>(p_a_lds1, a_lds_block_desc);
 
         // A DRAM tile window for load
         auto a_copy_dram_window =
@@ -158,10 +161,12 @@ struct FlatmmPipelineAGmemBGmemCRegV1
                              PipelinePolicy::template MakeADramTileDistribution<Problem>());
 
         // A LDS tile window for store
-        auto a_copy_lds_window = make_tile_window(a_lds_block, make_tuple(number<kMPerBlock>{}, number<kKPerBlock>{}), {0, 0});
+        auto a_copy_lds_window0 = make_tile_window(a_lds_block0, make_tuple(number<kMPerBlock>{}, number<kKPerBlock>{}), {0, 0});
+        auto a_copy_lds_window1 = make_tile_window(a_lds_block1, make_tuple(number<kMPerBlock>{}, number<kKPerBlock>{}), {0, 0});
 
         // A LDS tile for block GEMM
-        auto a_lds_gemm_window = make_tile_window(a_lds_block, make_tuple(number<kMPerBlock>{}, number<kKPerBlock>{}), {0, 0});
+        auto a_lds_gemm_window0 = make_tile_window(a_lds_block0, make_tuple(number<kMPerBlock>{}, number<kKPerBlock>{}), {0, 0});
+        auto a_lds_gemm_window1 = make_tile_window(a_lds_block1, make_tuple(number<kMPerBlock>{}, number<kKPerBlock>{}), {0, 0});
 
 #ifdef FEIFEI_DEBUG
         constexpr index_t a_lds_block_space_size_aligned =
@@ -201,62 +206,54 @@ struct FlatmmPipelineAGmemBGmemCRegV1
                 b_flat_distribution);
         auto b_flat_dram_window_next = b_flat_dram_window;
 
-        // Acc register tile
+        constexpr index_t MPerBlock = a_lds_gemm_window0.get_window_lengths()[number<0>{}];
+        constexpr index_t KPerBlock = a_lds_gemm_window0.get_window_lengths()[number<1>{}];
+
+        constexpr auto config = BlockFlatmm::BlockPolicy::template GetWarpGemmMWarpNWarp<Problem>();
+        using WG              = remove_cvref_t<decltype(config.template at<0>())>;
+
+        constexpr index_t MWarp = config.template at<1>();
+        constexpr index_t NWarp = config.template at<2>();
+
+        constexpr index_t MIterPerWarp = MPerBlock / (MWarp * WG::kM);
+        constexpr index_t NIterPerWarp = BlockTile::at(idxN) / (WarpTile::at(idxN) * BlockWarps::at(idxN));
+        constexpr index_t KIterPerWarp = KPerBlock / WG::kK;
+
+        constexpr index_t MPerBlockPerIter = MPerBlock / MIterPerWarp;
+        constexpr index_t KPerBlockPerIter = KPerBlock / KIterPerWarp;
+
+        constexpr index_t NFlatPerBlockPerIter = BlockGemmShape::flatNPerWarp;
+        constexpr index_t KFlatPerBlockPerIter = BlockGemmShape::flatKPerWarp;
+
+        const index_t iMWarp = get_warp_id() / NWarp;
+
+        // construct A-warp-window
+        auto a_lds_warp_window0 = make_tile_window(
+            a_lds_gemm_window0.get_bottom_tensor_view(),
+            make_tuple(number<WG::kM>{}, number<WG::kK>{}),
+            a_lds_gemm_window0.get_window_origin() + multi_index<2>{iMWarp * WG::kM, 0},
+            make_static_tile_distribution(typename WG::AWarpDstrEncoding{}));
+        auto a_lds_warp_window1 = make_tile_window(
+            a_lds_gemm_window1.get_bottom_tensor_view(),
+            make_tuple(number<WG::kM>{}, number<WG::kK>{}),
+            a_lds_gemm_window1.get_window_origin() + multi_index<2>{iMWarp * WG::kM, 0},
+            make_static_tile_distribution(typename WG::AWarpDstrEncoding{}));
+
+        auto a_gemm_warp_window = a_lds_warp_window0;
+        auto b_gemm_warp_window = b_flat_dram_window;
+
+        using a_warp_tensors_type = decltype(load_tile(a_lds_warp_window0));
+        using b_warp_tensors_type = decltype(load_tile(b_flat_dram_window));
+
+        auto a_block_tile0 = decltype(load_tile(a_copy_dram_window)){};
+        auto a_block_tile1 = decltype(load_tile(a_copy_dram_window)){};
         auto c_block_tile = block_flatmm.MakeCBlockTile();
-        
-        // prefetch
-        // global read 0
-        auto a_block_tile = load_tile(a_copy_dram_window);
+        statically_indexed_array<statically_indexed_array<a_warp_tensors_type, KIterPerWarp>, MIterPerWarp> a_warp_tensors0;
+        statically_indexed_array<statically_indexed_array<a_warp_tensors_type, KIterPerWarp>, MIterPerWarp> a_warp_tensors1;
+        statically_indexed_array<statically_indexed_array<b_warp_tensors_type, KIterPerWarp>, NIterPerWarp> b_warp_tensors0;
+        statically_indexed_array<statically_indexed_array<b_warp_tensors_type, KIterPerWarp>, NIterPerWarp> b_warp_tensors1;
 
-        auto b_flat_block_tile = load_tile(b_flat_dram_window);
-
-#ifdef FEIFEI_DEBUG
-        auto b_block_tile = load_tile(b_copy_dram_window);
-
-        // debug A global load
-        int a_block_tile_size_per_thread = a_block_tile.get_thread_buffer_size();
-        if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
-        {
-            printf("[PIPELN] a_block_tile_size_per_thread = %d\n", a_block_tile_size_per_thread);
-        }
-        for(auto i = 0; i < a_block_tile_size_per_thread; i++)
-        {
-            // dbg_f16[gid * DEBUG_CNT + i] = a_block_tile.get_thread_buffer()[i];
-        }
-
-        // debug B global load
-        int b_block_tile_size_per_thread = b_block_tile.get_thread_buffer_size();
-        if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
-        {
-            printf("[PIPELN] b_block_tile_size_per_thread = %d\n", b_block_tile_size_per_thread);
-        }
-        for(auto i = 0; i < b_block_tile_size_per_thread; i++)
-        {
-            // dbg_f16[gid * DEBUG_CNT + i] = b_block_tile.get_thread_buffer()[i];
-        }
-
-        // debug flat B global load
-        auto b_flat_tile                = load_tile(b_flat_dram_window);
-        int b_flat_tile_size_per_thread = b_flat_tile.get_thread_buffer_size();
-        if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
-        {
-            printf("[PIPELN] b_flat_tile_size_per_thread = %d\n", b_flat_tile_size_per_thread);
-        }
-        for(auto i = 0; i < b_flat_tile_size_per_thread; i++)
-        {
-            // dbg_f16[gid * DEBUG_CNT + i] = b_flat_tile.get_thread_buffer()[i];
-        }
-        // return c_block_tile;
-#endif
-
-        {
-            // move to 1
-            move_tile_window(a_copy_dram_window, {0, kKPerBlock});
-
-            // initialize C
-            tile_elementwise_inout([](auto& c) { c = 0; }, c_block_tile);
-
-            // LDS write 0
+        auto store_a_to_lds = [&](auto &a_block_tile, auto& a_copy_lds_window){
             if constexpr(std::is_same_v<ALayout, tensor_layout::gemm::ColumnMajor>)
             {
                 auto a_shuffle_tmp = make_static_distributed_tensor<ADataType>(PipelinePolicy::template MakeShuffledARegBlockDistribution<Problem>());
@@ -268,107 +265,176 @@ struct FlatmmPipelineAGmemBGmemCRegV1
             {
                 store_tile(a_copy_lds_window, tile_elementwise_in(a_element_func, a_block_tile));
             }
+        };
+        auto load_a_to_vgpr = [&](auto &warp_tensors, auto& lds_warp_window){
+            static_for<0, MIterPerWarp, 1>{}([&](auto mIter) {
+                static_for<0, KIterPerWarp, 1>{}([&](auto kIter) {
+                    a_gemm_warp_window = lds_warp_window;
+                    move_tile_window(a_gemm_warp_window, {mIter * MPerBlockPerIter, kIter * KPerBlockPerIter});
+                    warp_tensors(mIter)(kIter) = load_tile(a_gemm_warp_window);
+                });
+            });
+        };
+        auto load_b_to_vgpr = [&](auto &b_warp_tensors){
+            static_for<0, NIterPerWarp, 1>{}([&](auto nIter) {
+                static_for<0, KIterPerWarp, 1>{}([&](auto kIter) {
+                    b_gemm_warp_window = b_flat_dram_window;
+                    move_tile_window(b_gemm_warp_window, {nIter * NFlatPerBlockPerIter, kIter * KFlatPerBlockPerIter});
+                    b_warp_tensors(nIter)(kIter) = load_tile(b_gemm_warp_window);
+                });
+            });
+        };
+
+        using CWarpDstr   = typename WG::CWarpDstr;
+        using CWarpTensor = typename WG::CWarpTensor;
+
+        constexpr auto c_warp_y_lengths = to_sequence(CWarpDstr{}.get_ys_to_d_descriptor().get_lengths());
+        constexpr auto c_warp_y_index_zeros = uniform_sequence_gen_t<CWarpDstr::NDimY, 0>{};
 
 #ifdef FEIFEI_DEBUG
-            move_tile_window(b_copy_dram_window, {0, kKPerBlock});
-            // LDS write 0
-            if constexpr(std::is_same_v<BLayout, tensor_layout::gemm::RowMajor>)
-            {
-                auto b_shuffle_tmp = make_static_distributed_tensor<BDataType>(PipelinePolicy::template MakeShuffledBRegBlockDistribution<Problem>());
-                shuffle_tile(b_shuffle_tmp, b_block_tile);
-                const auto b_block_tile_tmp = tile_elementwise_in(b_element_func, b_shuffle_tmp);
-                store_tile(b_copy_lds_window, b_block_tile_tmp);
-            }
-            else
-            {
-                store_tile(b_copy_lds_window, tile_elementwise_in(b_element_func, b_block_tile));
-            }
-#endif
-        }
-
-        index_t iCounter = num_loop - 1;
-        while(iCounter > 0)
+        if(threadIdx.x == 0 && blockIdx.x == 0 && threadIdx.y == 0 && blockIdx.y == 0)
         {
-            // global read i + 1
-            a_block_tile = load_tile(a_copy_dram_window);
-
-            move_tile_window(b_flat_dram_window_next, {0, BlockGemmShape::flatKPerBlock});
-
-#ifdef FEIFEI_DEBUG
-            b_block_tile = load_tile(b_copy_dram_window);
-#endif
-
-            block_sync_lds();
-
-            // GEMM i
-            block_flatmm(c_block_tile,
-                         a_lds_gemm_window,
-                         b_flat_dram_window,
-                         b_flat_dram_window_next,
-                         b_flat_block_tile
-#ifdef FEIFEI_DEBUG
-                         ,
-                         b_lds_gemm_window,
-                         dbg_int,
-                         dbg_fp32,
-                         dbg_f168
-#endif
-            );
-
-            block_sync_lds();
-
-            // move to i + 2
-            move_tile_window(a_copy_dram_window, {0, kKPerBlock});
-
-            // LDS write i + 1
-            const auto a_block_tile_tmp = tile_elementwise_in(a_element_func, a_block_tile);
-            store_tile(a_copy_lds_window, a_block_tile_tmp);
-
-#ifdef FEIFEI_DEBUG
-            move_tile_window(b_copy_dram_window, {0, kKPerBlock});
-
-            // LDS write i + 1
-            if constexpr(std::is_same_v<BLayout, tensor_layout::gemm::RowMajor>)
-            {
-                auto b_shuffle_tmp_loop = make_static_distributed_tensor<BDataType>(
-                    PipelinePolicy::template MakeShuffledBRegBlockDistribution<Problem>());
-                shuffle_tile(b_shuffle_tmp_loop, b_block_tile);
-                store_tile(b_copy_lds_window,
-                           tile_elementwise_in(b_element_func, b_shuffle_tmp_loop));
-            }
-            else
-            {
-                const auto b_block_tile_tmp = tile_elementwise_in(b_element_func, b_block_tile);
-                store_tile(b_copy_lds_window, b_block_tile_tmp);
-            }
-#endif
-
-            // move to next flat K
-            move_tile_window(b_flat_dram_window, {0, BlockGemmShape::flatKPerBlock});
-
-            iCounter--;
+            printf("[BLOCK ] num_loop = %d\n", num_loop);
+            printf("[BLOCK ] MIterPerWarp = %d, NIterPerWarp = %d, KIterPerWarp = %d\n", MIterPerWarp, NIterPerWarp, KIterPerWarp);
         }
+#endif
 
-        // tail
+        // prefetch
         {
+            // A0:vmem->vgpr
+            a_block_tile0 = load_tile(a_copy_dram_window);
+            // A0:vgpr->lds
+            store_a_to_lds(a_block_tile0, a_copy_lds_window0);
+            // A0:lds->vgpr
             block_sync_lds();
+            load_a_to_vgpr(a_warp_tensors0, a_lds_warp_window0);
 
-            // GEMM num_loop - 1
-            block_flatmm(c_block_tile,
-                         a_lds_gemm_window,
-                         b_flat_dram_window,
-                         b_flat_dram_window_next,
-                         b_flat_block_tile
-#ifdef FEIFEI_DEBUG
-                         ,
-                         b_lds_gemm_window,
-                         dbg_int,
-                         dbg_fp32,
-                         dbg_f168
-#endif
-            );
+            if (num_loop >= 2)
+            {
+                // move to A1
+                move_tile_window(a_copy_dram_window, {0, kKPerBlock});
+                // A1:vmem->vgpr
+                a_block_tile1 = load_tile(a_copy_dram_window);
+                // A1:vgpr->lds
+                store_a_to_lds(a_block_tile1, a_copy_lds_window1);
+            }
+
+            if (num_loop >= 3)
+            {
+                // move to A0+
+                move_tile_window(a_copy_dram_window, {0, kKPerBlock});
+                // A0+:vmem->vgpr
+                a_block_tile0 = load_tile(a_copy_dram_window);
+            }
+
+            // B0:vmem->vgpr
+            load_b_to_vgpr(b_warp_tensors0);
+
+            if (num_loop >= 2)
+                move_tile_window(b_flat_dram_window, {0, flatKPerBlock}); // move to B1
         }
 
+        while(num_loop > 0)
+        {
+            if (num_loop >= 4)
+                move_tile_window(a_copy_dram_window, {0, kKPerBlock}); // move to A1+
+
+            // A1+:vmem->vgpr
+            a_block_tile1 = load_tile(a_copy_dram_window);
+            
+            // A0+:vgpr->lds
+            store_a_to_lds(a_block_tile0, a_copy_lds_window0);
+
+            // A1:lds->vgpr
+            block_sync_lds();
+            load_a_to_vgpr(a_warp_tensors1, a_lds_warp_window1);
+
+            // B1:vmem->vgpr
+            load_b_to_vgpr(b_warp_tensors1);
+
+            // C0 += A0 * B0
+            static_for<0, KIterPerWarp, 1>{}([&](auto kIter) {
+                static_for<0, NIterPerWarp, 1>{}([&](auto nIter) {
+                    auto b_gemm = b_warp_tensors0(nIter)(kIter);
+    
+                    static_for<0, MIterPerWarp, 1>{}([&](auto mIter) {
+                        auto a_gemm = a_warp_tensors0(mIter)(kIter);
+    
+                        // read C warp tensor from C block tensor
+                        CWarpTensor c_warp_tensor;
+    
+                        c_warp_tensor.get_thread_buffer() = c_block_tile.get_y_sliced_thread_data(
+                            merge_sequences(sequence<mIter, nIter>{}, c_warp_y_index_zeros),
+                            merge_sequences(sequence<1, 1>{}, c_warp_y_lengths));
+    
+                        // warp GEMM
+                        WG{}(c_warp_tensor, a_gemm, b_gemm);
+    
+                        // write C warp tensor into C block tensor
+                        c_block_tile.set_y_sliced_thread_data(
+                            merge_sequences(sequence<mIter, nIter>{}, c_warp_y_index_zeros),
+                            merge_sequences(sequence<1, 1>{}, c_warp_y_lengths),
+                            c_warp_tensor.get_thread_buffer());
+    
+                    });
+                });
+            });
+
+            // --------------------------------------------------------------------------------------
+            if(num_loop == 1)
+                return c_block_tile;
+            num_loop--;
+            move_tile_window(b_flat_dram_window, {0, flatKPerBlock}); // move to B0+
+            // --------------------------------------------------------------------------------------
+
+            if (num_loop >= 4)
+                move_tile_window(a_copy_dram_window, {0, kKPerBlock}); // move to A0++
+
+            // A0++:vmem->vgpr
+            a_block_tile0 = load_tile(a_copy_dram_window);
+
+            // A1+:vgpr->lds
+            store_a_to_lds(a_block_tile1, a_copy_lds_window1);
+
+            // A0+:lds->vgpr
+            block_sync_lds();
+            load_a_to_vgpr(a_warp_tensors0, a_lds_warp_window0);
+
+            // B0+:vmem->vgpr
+            load_b_to_vgpr(b_warp_tensors0);
+
+            // C1 += A1 * B1
+            static_for<0, KIterPerWarp, 1>{}([&](auto kIter) {
+                static_for<0, NIterPerWarp, 1>{}([&](auto nIter) {
+                    auto b_gemm = b_warp_tensors1(nIter)(kIter);
+    
+                    static_for<0, MIterPerWarp, 1>{}([&](auto mIter) {
+                        auto a_gemm = a_warp_tensors1(mIter)(kIter);
+    
+                        // read C warp tensor from C block tensor
+                        CWarpTensor c_warp_tensor;
+    
+                        c_warp_tensor.get_thread_buffer() = c_block_tile.get_y_sliced_thread_data(
+                            merge_sequences(sequence<mIter, nIter>{}, c_warp_y_index_zeros),
+                            merge_sequences(sequence<1, 1>{}, c_warp_y_lengths));
+    
+                        // warp GEMM
+                        WG{}(c_warp_tensor, a_gemm, b_gemm);
+    
+                        // write C warp tensor into C block tensor
+                        c_block_tile.set_y_sliced_thread_data(
+                            merge_sequences(sequence<mIter, nIter>{}, c_warp_y_index_zeros),
+                            merge_sequences(sequence<1, 1>{}, c_warp_y_lengths),
+                            c_warp_tensor.get_thread_buffer());
+    
+                    });
+                });
+            });
+
+            num_loop--;
+            move_tile_window(b_flat_dram_window, {0, flatKPerBlock}); // move to B1
+        }
+        
         return c_block_tile;
     }
 
