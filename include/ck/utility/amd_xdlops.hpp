@@ -769,9 +769,8 @@ struct intrin_mfma_scale_f32_16x16x128f8f6f4<16, 16, OpselA, OpselB>
         int32x4_t arg_a = bit_cast<int32x4_t>(reg_a);
         int32x4_t arg_b = bit_cast<int32x4_t>(reg_b);
 
+#if 0
         using arg_type = int32x8_t;
-
-#if 1
         reg_c.template AsType<float4_t>()(Number<0>{}) =
             __builtin_amdgcn_mfma_scale_f32_16x16x128_f8f6f4(
                 arg_type{arg_a[0], arg_a[1], arg_a[2], arg_a[3], 0, 0, 0, 0},
@@ -784,43 +783,45 @@ struct intrin_mfma_scale_f32_16x16x128f8f6f4<16, 16, OpselA, OpselB>
                 OpselB, // OPSEL
                 scale_b);
 #else
-        asm volatile("v_mfma_scale_f32_16x16x128_f8f6f4 %0, %1, %2, %3, %4, %5 "
-                     "op_sel:[0,0]"
-                     "op_sel_hi:[0,0]"
-                     "cbsz:4"
-                     " blgp:4"
-                     : "+v"(reg_c.template AsType<float4_t>()(Number<0>{}))
-                     : "v"(bit_cast<int32x4_t>(arg_a)),
-                       "v"(bit_cast<int32x4_t>(arg_b)),
-                       "v"(reg_c.template AsType<float4_t>()[Number<0>{}]),
-                       "v"(scale_a),
-                       "v"(scale_b));
-#endif
-
-#if 0
-        if(blockIdx.x == 8 && blockIdx.y == 0)
-            printf("bidx: %u, bidy: %u, tid: %u, A: %08x, %08x, %08x, %08x,"
-                   "B:%08x, %08x, %08x, %08x, a_scale: %.f, b_scale: %.f, "
-                   "reg_c: %f, %f, %f, %f\n",
-                   blockIdx.x,
-                   blockIdx.y,
-                   threadIdx.x,
-                   bit_cast<uint32_t>(arg_a[0]),
-                   bit_cast<uint32_t>(arg_a[1]),
-                   bit_cast<uint32_t>(arg_a[2]),
-                   bit_cast<uint32_t>(arg_a[3]),
-                   bit_cast<uint32_t>(arg_b[0]),
-                   bit_cast<uint32_t>(arg_b[1]),
-                   bit_cast<uint32_t>(arg_b[2]),
-                   bit_cast<uint32_t>(arg_b[3]),
-                   //    *(reinterpret_cast<const uint32_t*>(&(scale_a))),
-                   //    *(reinterpret_cast<const uint32_t*>(&(scale_b))),
-                   type_convert<float>(scale_a),
-                   type_convert<float>(scale_b),
-                   reg_c.template AsType<float>()[Number<0>{}],
-                   reg_c.template AsType<float>()[Number<1>{}],
-                   reg_c.template AsType<float>()[Number<2>{}],
-                   reg_c.template AsType<float>()[Number<3>{}]);
+        using arg_type = int32x4_t;
+#define v_mfma_scale(OPSEL_A_L, OPSEL_A_H, OPSEL_B_L, OPSEL_B_H)                   \
+    else if constexpr((OpselA == 1 * OPSEL_A_L + 2 * OPSEL_A_H) &&                 \
+                      (OpselB == 1 * OPSEL_B_L + 2 * OPSEL_B_H))                   \
+    {                                                                              \
+        asm volatile("v_mfma_scale_f32_16x16x128_f8f6f4  %0, %1, %2, %3, %4, %5  " \
+                     "op_sel:[" #OPSEL_A_L "," #OPSEL_A_H "] "                     \
+                     "op_sel_hi:[" #OPSEL_B_L "," #OPSEL_B_H "] "                  \
+                     "cbsz:4 blgp:4"                                               \
+                     : "+v"(reg_c.template AsType<float4_t>()(Number<0>{}))        \
+                     : "v"(arg_type{arg_a[0], arg_a[1], arg_a[2], arg_a[3]}),      \
+                       "v"(arg_type{arg_b[0], arg_b[1], arg_b[2], arg_b[3]}),      \
+                       "v"(reg_c.template AsType<float4_t>()[Number<0>{}]),        \
+                       "v"(scale_a),                                               \
+                       "v"(scale_b));                                              \
+    }
+        using arg_type = int32x4_t;
+        if constexpr(false) {}
+        v_mfma_scale(0, 0, 0, 0)     //
+            v_mfma_scale(0, 0, 0, 1) //
+            v_mfma_scale(0, 0, 1, 0) //
+            v_mfma_scale(0, 0, 1, 1) //
+            v_mfma_scale(0, 1, 0, 0) //
+            v_mfma_scale(0, 1, 0, 1) //
+            v_mfma_scale(0, 1, 1, 0) //
+            v_mfma_scale(0, 1, 1, 1) //
+            v_mfma_scale(1, 0, 0, 0) //
+            v_mfma_scale(1, 0, 0, 1) //
+            v_mfma_scale(1, 0, 1, 0) //
+            v_mfma_scale(1, 0, 1, 1) //
+            v_mfma_scale(1, 1, 0, 0) //
+            v_mfma_scale(1, 1, 0, 1) //
+            v_mfma_scale(1, 1, 1, 0) //
+            v_mfma_scale(1, 1, 1, 1) //
+            else
+        {
+            static_assert(0, "Unsupported op_sel");
+        }
+#undef v_mfma_scale
 #endif
 
 #else
