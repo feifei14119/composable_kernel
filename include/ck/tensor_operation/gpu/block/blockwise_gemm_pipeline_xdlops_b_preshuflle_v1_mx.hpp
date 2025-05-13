@@ -245,8 +245,26 @@ struct BlockwiseGemmXdlops_pipeline_bpreshuffle_v1_mx<BlockGemmPipelineScheduler
         const BScaleGridDesc& b_scale_grid_desc,
         BScaleThreadTransfer& b_scale_thread_copy,
         const BScaleGridBuffer& b_scale_grid_buf,
-        index_t num_loop) const
+        index_t num_loop,
+        // FF_DBG
+        int*          dbg_i32  = nullptr,
+        float*        dbg_f32  = nullptr,
+        bhalf_t*      dbg_f16  = nullptr,
+        e8m0_bexp_t*  dbg_f8   = nullptr,
+        f4x2_pk_t*    dbg_f4pk = nullptr) const
     {
+
+#ifdef FF_DBG
+        int thd_id = threadIdx.x; // 0~255
+        int blk_sz = blockDim.x;
+        int blk_id_x = blockIdx.x;
+        int blk_id_y = blockIdx.y;
+        int grd_sz_x = gridDim.x;
+        int grd_sz_y = gridDim.y;
+        int gid = ((blk_sz*grd_sz_x) * blk_id_y) + (blk_sz * blk_id_x) + thd_id;
+
+        dbg_i32[gid * FF_DBG_CNT + 1] = thd_id;
+#endif
         ignore = b_block_desc;
         ignore = b_block_buf;
         auto a_thread_buf = make_static_buffer<AddressSpaceEnum::Vgpr, ComputeTypeA>(

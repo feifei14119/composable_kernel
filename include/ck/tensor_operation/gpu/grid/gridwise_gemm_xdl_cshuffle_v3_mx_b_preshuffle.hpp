@@ -653,7 +653,13 @@ struct GridwiseGemmMX_xdl_cshuffle_v3_b_preshuffle
                           AElementwiseOperation a_element_op_,
                           BElementwiseOperation b_element_op_,
                           CElementwiseOperation c_element_op_,
-                          bool is_reduce_ = false)
+                          bool is_reduce_ = false,
+                          // FF_DBG
+                          int*          dbg_i32_  = nullptr,
+                          float*        dbg_f32_  = nullptr,
+                          bhalf_t*      dbg_f16_  = nullptr,
+                          e8m0_bexp_t*  dbg_f8_   = nullptr,
+                          f4x2_pk_t*    dbg_f4pk_ = nullptr)
             : Problem{M_,
                       N_,
                       K_,
@@ -663,15 +669,21 @@ struct GridwiseGemmMX_xdl_cshuffle_v3_b_preshuffle
                       StrideScaleB_,
                       StrideC_,
                       k_batch_},
-              p_a_grid{p_a_grid_},
-              p_a_scale_grid{p_a_scale_grid_},
-              p_b_grid{p_b_grid_},
-              p_b_scale_grid{p_b_scale_grid_},
-              p_c_grid{p_c_grid_},
-              a_element_op{a_element_op_},
-              b_element_op{b_element_op_},
-              c_element_op{c_element_op_},
-              is_reduce(is_reduce_)
+                      p_a_grid{p_a_grid_},
+                      p_a_scale_grid{p_a_scale_grid_},
+                      p_b_grid{p_b_grid_},
+                      p_b_scale_grid{p_b_scale_grid_},
+                      p_c_grid{p_c_grid_},
+                      a_element_op{a_element_op_},
+                      b_element_op{b_element_op_},
+                      c_element_op{c_element_op_},
+                      is_reduce(is_reduce_),
+                      // FF_DBG
+                      dbg_i32{dbg_i32_},
+                      dbg_f32{dbg_f32_},
+                      dbg_f16{dbg_f16_},
+                      dbg_f8{dbg_f8_},
+                      dbg_f4pk{dbg_f4pk_}
         {
         }
 
@@ -695,6 +707,13 @@ struct GridwiseGemmMX_xdl_cshuffle_v3_b_preshuffle
         const BElementwiseOperation b_element_op;
         const CElementwiseOperation c_element_op;
         bool is_reduce;
+
+        // FF_DBG
+        int*            dbg_i32;
+        float*          dbg_f32;
+        bhalf_t*        dbg_f16;
+        e8m0_bexp_t*    dbg_f8;
+        f4x2_pk_t*      dbg_f4pk;
     };
 
     struct SplitKBatchOffset
@@ -1216,6 +1235,24 @@ struct GridwiseGemmMX_xdl_cshuffle_v3_b_preshuffle
                                const CGridDesc_MBlock_MPerBlock_NBlock_NPerBlock&
                                    c_grid_desc_mblock_mperblock_nblock_nperblock)
     {
+#ifdef FF_DBG
+        const Argument * arg = static_cast<const Argument*>(&problem);
+        int *           dbg_i32     = arg->dbg_i32;
+        float *         dbg_f32     = arg->dbg_f32;
+        bhalf_t*        dbg_f16      = arg->dbg_f16;
+        e8m0_bexp_t*    dbg_f8      = arg->dbg_f8;
+        f4x2_pk_t*      dbg_f4pk    = arg->dbg_f4pk;
+
+        int thd_id = threadIdx.x; // 0~255
+        int blk_sz = blockDim.x;
+        int blk_id_x = blockIdx.x;
+        int blk_id_y = blockIdx.y;
+        int grd_sz_x = gridDim.x;
+        int grd_sz_y = gridDim.y;
+        int gid = ((blk_sz*grd_sz_x) * blk_id_y) + (blk_sz * blk_id_x) + thd_id;
+
+        dbg_i32[gid * FF_DBG_CNT] = thd_id;
+#endif
         const auto a_grid_buf = make_dynamic_buffer<AddressSpaceEnum::Global>(
             p_a_grid, a_grid_desc_ak0_m_ak1.GetElementSpaceSize());
         const auto b_grid_buf = make_dynamic_buffer<AddressSpaceEnum::Global>(
@@ -1413,7 +1450,13 @@ struct GridwiseGemmMX_xdl_cshuffle_v3_b_preshuffle
                                                                          b_scale_grid_desc_bn_ak,
                                                                          b_scale_thread_copy,
                                                                          b_scale_grid_buf,
-                                                                         num_k_block_main_loop);
+                                                                         num_k_block_main_loop,
+                                                                         // FF_DBG
+                                                                         dbg_i32, 
+                                                                         dbg_f32, 
+                                                                         dbg_f16, 
+                                                                         dbg_f8 , 
+                                                                         dbg_f4pk);
 
         // shuffle C and write out
         {

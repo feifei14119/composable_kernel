@@ -1,0 +1,6 @@
+sh ../script/cmake-ck-dev.sh ../ gfx942
+sh ../script/cmake-ck-dev.sh ../ gfx950
+sh ../script/cmake-ck-dev.sh ../ gfx1100
+
+rm ./ff_*.txt && rm ./bin/mx
+clear && make mx && ./bin/mx

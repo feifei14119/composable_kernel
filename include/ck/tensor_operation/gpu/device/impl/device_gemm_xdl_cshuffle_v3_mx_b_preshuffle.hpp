@@ -214,6 +214,7 @@ struct DeviceGemmMX_Xdl_CShuffleV3_BPreShuffle
         ComputeTypeA,
         ComputeTypeB>;
 
+    static constexpr ck::index_t blockSize = ck::Number<BlockSize>(); //FF_DBG
     using Argument = typename GridwiseGemm::Argument;
 
     int GetPreShuffleParameters() override { return NPerXDL; }
@@ -446,7 +447,13 @@ struct DeviceGemmMX_Xdl_CShuffleV3_BPreShuffle
                              index_t KBatch,
                              AElementwiseOperation a_element_op,
                              BElementwiseOperation b_element_op,
-                             CElementwiseOperation c_element_op)
+                             CElementwiseOperation c_element_op,
+                             // FF_DBG
+                             int*               dbg_i32_  = nullptr,
+                             float*             dbg_f32_  = nullptr,
+                             bhalf_t*           dbg_f16_  = nullptr,
+                             e8m0_bexp_t*       dbg_f8_   = nullptr,
+                             f4x2_pk_t*         dbg_f4pk_ = nullptr)
     {
         return Argument{p_a,
                         p_a_scale,
@@ -464,7 +471,14 @@ struct DeviceGemmMX_Xdl_CShuffleV3_BPreShuffle
                         KBatch,
                         a_element_op,
                         b_element_op,
-                        c_element_op};
+                        c_element_op,
+                        false,
+                        // FF_DBG
+                        dbg_i32_,
+                        dbg_f32_,
+                        dbg_f16_,
+                        dbg_f8_,
+                        dbg_f4pk_};
     }
 
     static auto MakeInvoker() { return Invoker{}; }
