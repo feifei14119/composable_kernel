@@ -116,9 +116,9 @@ int main(int argc, char* argv[])
     bool flush_cache     = false;
 
     // GEMM shape
-    ck::index_t M = 256-17;
-    ck::index_t N = 256;
-    ck::index_t K = 256*2 + 128;
+    ck::index_t M = 4096;
+    ck::index_t N = 4096;
+    ck::index_t K = 4096;
 
     ck::index_t StrideA = K;
     ck::index_t StrideB = K;
