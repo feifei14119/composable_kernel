@@ -96,14 +96,16 @@ using DeviceOpInstance = ck::tensor_operation::device::DeviceGemmMX_Xdl_CShuffle
     A0DataType,  A1DataType,  B0DataType,   B1DataType,   CDataType,    AccDataType,  CShuffleDataType, 
     AElementOp, BElementOp, CElementOp,  GemmSpec,         
     ScaleBlockSize,   256,   
-    128,  128,   128,        
-    32,    32,               
-    16,    16,               
-    8,     2,                
+    128,  128,   128,        // MNK PRER BLK
+    32,    32,               // BUFFLER LOAD ELEMENT
+    16,    16,               // MFMA
+    8,     2,                // MN WAVE REPEATE <- TILE / WAVE PATT
+    // k_blk/32, 256/k0,         order                   lds
     S<4, 64, 1>,   S<1, 0, 2>,   S<1, 0, 2>,   2,   32,   32,   0,            
     S<4, 64, 1>,   S<1, 0, 2>,   S<1, 0, 2>,   2,   32,   32,   0,            
+    // M RPT, N RPT, <1, M, 1, N> THREAD 
     2,   1,   S<1, 32, 1, 8>,  8,                
-    ck::BlockGemmPipelineScheduler::Intrawave, ck::BlockGemmPipelineVersion::v1, A0DataType, B0DataType>;
+    ck::BlockGemmPipelineScheduler::Intrawave, ck::BlockGemmPipelineVersion::v3, A0DataType, B0DataType>;
 // clang-format on
 
 int main(int argc, char* argv[])
@@ -114,9 +116,9 @@ int main(int argc, char* argv[])
     bool flush_cache     = false;
 
     // GEMM shape
-    ck::index_t M = 128;
-    ck::index_t N = 128;
-    ck::index_t K = 512;
+    ck::index_t M = 256-17;
+    ck::index_t N = 256;
+    ck::index_t K = 256*2 + 128;
 
     ck::index_t StrideA = K;
     ck::index_t StrideB = K;
@@ -335,7 +337,7 @@ int main(int argc, char* argv[])
         ave_time = invoker.Run(argument, StreamConfig{nullptr, time_kernel, 0, 50, 100});
     }
 
-#ifdef FF_DBG
+#if 0
     dbg_i32_dev.FromDevice(dbg_i32.mData.data());
     //dbg_f32_dev.FromDevice(dbg_f32.mData.data());
     //dbg_f8_dev.FromDevice(dbg_f8.mData.data());
@@ -372,7 +374,8 @@ int main(int argc, char* argv[])
                 ck::f4x2_pk_t apk  = a_m_k.mData[idx];
                 ck::f4_t a0 = apk.unpack(ck::Number<0>{});
                 ck::f4_t a1 = apk.unpack(ck::Number<1>{});
-                file << ck::type_convert<float>(a0) << "[; ";
+                file << "[";
+                file << ck::type_convert<float>(a0) << "; ";
                 file << ck::type_convert<float>(a1) << "], ";
             }
         }
@@ -471,10 +474,11 @@ int main(int argc, char* argv[])
 
         c_device_buf.FromDevice(c_m_n_device_result.mData.data());
 
-        return ck::utils::check_err(
+        bool pass =  ck::utils::check_err(
                    c_m_n_device_result, c_m_n_host_result, "Error: Incorrect results!", 5e-2, 5e-2)
                    ? 0
                    : 1;
+        printf("\n%s\n", pass == 0 ? "PASS" : "FAILE");
     }
 
     return 0;
