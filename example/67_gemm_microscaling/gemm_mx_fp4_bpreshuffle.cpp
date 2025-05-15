@@ -101,15 +101,15 @@ using DeviceOpInstance = ck::tensor_operation::device::DeviceGemmMX_Xdl_CShuffle
     S<4, 64, 1>,   S<1, 0, 2>,   S<1, 0, 2>,   2,   32,   32,   0,            
     S<4, 64, 1>,   S<1, 0, 2>,   S<1, 0, 2>,   2,   32,   32,   0,            
     2,   1,   S<1, 32, 1, 8>,  8,                
-    ck::BlockGemmPipelineScheduler::Intrawave, ck::BlockGemmPipelineVersion::v1, A0DataType, B0DataType>;
+    ck::BlockGemmPipelineScheduler::Intrawave, ck::BlockGemmPipelineVersion::v3, A0DataType, B0DataType>;
 // clang-format on
 
 int main(int argc, char* argv[])
 {
     bool do_verification = true;
     int init_method      = 1;
-    bool time_kernel     = false;
-    bool flush_cache     = true;
+    bool time_kernel     = true;
+    bool flush_cache     = false;
 
     // GEMM shape
     ck::index_t M = 3840;

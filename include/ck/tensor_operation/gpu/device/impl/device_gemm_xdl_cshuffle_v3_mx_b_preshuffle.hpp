@@ -310,7 +310,7 @@ struct DeviceGemmMX_Xdl_CShuffleV3_BPreShuffle
             if(has_main_k_block_loop)
             {
                 // Tail number always full
-                if constexpr(BlkGemmPipelineVer == BlockGemmPipelineVersion::v1)
+                /*if constexpr(BlkGemmPipelineVer == BlockGemmPipelineVersion::v1)
                 {
                     if(GridwiseGemm::CalculateKBlockLoopTailNum(K_split) == TailNumber::Odd)
                     {
@@ -333,9 +333,9 @@ struct DeviceGemmMX_Xdl_CShuffleV3_BPreShuffle
                         Run(kernel);
                     }
                 }
-                else if constexpr(BlkGemmPipelineVer == BlockGemmPipelineVersion::v3)
+                else*/ if constexpr(BlkGemmPipelineVer == BlockGemmPipelineVersion::v3)
                 {
-                    if(GridwiseGemm::CalculateKBlockLoopTailNum(K_split) == TailNumber::Odd)
+                    /*if(GridwiseGemm::CalculateKBlockLoopTailNum(K_split) == TailNumber::Odd)
                     {
                         const auto kernel = kernel_gemm_xdl_cshuffle_v3_b_preshuffle_2lds<
                             GridwiseGemm,
@@ -345,7 +345,7 @@ struct DeviceGemmMX_Xdl_CShuffleV3_BPreShuffle
                             TailNumber::Odd>;
                         Run(kernel);
                     }
-                    else
+                    else*/
                     {
                         const auto kernel = kernel_gemm_xdl_cshuffle_v3_b_preshuffle_2lds<
                             GridwiseGemm,
@@ -357,7 +357,7 @@ struct DeviceGemmMX_Xdl_CShuffleV3_BPreShuffle
                     }
                 }
             }
-            else
+            /*else
             {
                 // Tail number always 1
                 if constexpr(BlkGemmPipelineVer == BlockGemmPipelineVersion::v1)
@@ -406,7 +406,7 @@ struct DeviceGemmMX_Xdl_CShuffleV3_BPreShuffle
                         Run(kernel);
                     }
                 }
-            }
+            }*/
 
             return ave_time;
         }
