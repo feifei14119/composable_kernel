@@ -44,6 +44,8 @@ list(APPEND EXAMPLE_FF_COMPILE_OPTIONS -v)
 list(APPEND EXAMPLE_FF_COMPILE_OPTIONS -save-temps)
 list(APPEND EXAMPLE_FF_COMPILE_OPTIONS -Wno-gnu-line-marker)
 # list(APPEND EXAMPLE_FF_COMPILE_OPTIONS  -mllvm -greedy-reverse-local-assignment=1)
+list(APPEND EXAMPLE_FF_COMPILE_OPTIONS "SHELL: -mllvm -greedy-reverse-local-assignment=1")
+list(APPEND EXAMPLE_FF_COMPILE_OPTIONS -ftemplate-backtrace-limit=0)
 list(APPEND EXAMPLE_FF_COMPILE_OPTIONS -Wno-gnu-line-marker)
 list(APPEND EXAMPLE_FF_COMPILE_OPTIONS -DFF_DBG=1 -DFF_DBG_CNT=64)
 
