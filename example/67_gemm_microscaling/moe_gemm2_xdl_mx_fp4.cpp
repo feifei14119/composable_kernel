@@ -178,8 +178,8 @@ using DeviceOpInstance                     = ck::tensor_operation::device::Devic
 int main(int argc, char* argv[])
 {
     bool do_verification = true;
-    int init_method      = 1;
-    bool time_kernel     = true;
+    int init_method      = 2;
+    bool time_kernel     = 0;
 
     // per expert:
     // GEMM shape
@@ -188,10 +188,10 @@ int main(int argc, char* argv[])
     ck::index_t sorted_size               = sorted_tile_num * MPerBlock;
     ck::index_t valid_size                = valid_tile_num * MPerBlock;
 
-    ck::index_t N       = 6144;
-    ck::index_t K       = 4096;
+    ck::index_t N       = 144;
+    ck::index_t K       = 128;
     ck::index_t experts = 8;
-    ck::index_t tokens  = 832;
+    ck::index_t tokens  = 64;
     ck::index_t topk    = 2;
 
     if(argc == 1)
