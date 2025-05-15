@@ -1356,6 +1356,20 @@ struct GridwiseGemmMX_xdl_cshuffle_v3_b_preshuffle
                                    0,
                                    KPack / KGroup * (get_thread_local_1d_id() % warpSize)));
 
+#if 1
+            if(threadIdx.x == 0)
+            {
+                int grd_buf_sz = b_grid_desc_bpreshuffled.GetElementSpaceSize();
+                int blk_buf_sz = b_block_desc_bk0_n_bk1.GetElementSpaceSize();
+                printf("[problem]  BN0Shuffled = %d, BK0Shuffled = %d\n", problem.BN0Shuffled, problem.BK0Shuffled);
+                printf("[descript] grd_buf_sz = %d, blk_buf_sz = %d\n", grd_buf_sz, blk_buf_sz);
+                printf("[mfma]     m = %d, n = %d, k = %d\n", 
+                    mfma_selector::selected_mfma.m_per_blk,
+                    mfma_selector::selected_mfma.n_per_blk,
+                    mfma_selector::selected_mfma.k_per_blk);
+                
+            }
+#endif
         // LDS allocation for A and B: be careful of alignment
 
         // Cast after lds
