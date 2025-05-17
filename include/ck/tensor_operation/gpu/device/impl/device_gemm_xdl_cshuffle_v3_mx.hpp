@@ -313,7 +313,14 @@ struct DeviceGemmMX_Xdl_CShuffleV3 : public DeviceGemmMX<ALayout,
                           : 1
                     : 2;
 
-            if(has_main_k_block_loop)
+                            const auto kernel =
+                                kernel_gemm_xdl_cshuffle_v3<GridwiseGemm,
+                                                            true,
+                                                            InMemoryDataOperationEnum::AtomicAdd,
+                                                            minimum_occupancy,
+                                                            TailNumber::Even>;
+                            Run(kernel);
+            /*if(has_main_k_block_loop)
             {
                 // Tail number always full
                 if constexpr(BlkGemmPipelineVer == BlockGemmPipelineVersion::v1)
@@ -416,7 +423,7 @@ struct DeviceGemmMX_Xdl_CShuffleV3 : public DeviceGemmMX<ALayout,
                         Run(kernel);
                     }
                 }
-            }
+            }*/
 
             return ave_time;
         }

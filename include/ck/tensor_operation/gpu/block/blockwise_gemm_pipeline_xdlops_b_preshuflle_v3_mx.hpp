@@ -220,19 +220,13 @@ struct BlockwiseGemmXdlops_pipeline_bpreshuffle_v3_mx<BlockGemmPipelineScheduler
         constexpr auto num_mfma_inst = HotLoopInstList::C_MFMA_Inst_Num;
 
         constexpr auto mfma_cycle = HotLoopInstList::C_MFMA_Inst_Cycle;
-        constexpr auto ds_read_a_issue_cycle =
-            HotLoopInstList::A_LDS_Read_Width * sizeof(ADataType) == 16 ? 8 : 4;
-        constexpr auto ds_read_b_issue_cycle =
-            HotLoopInstList::B_LDS_Read_Width * sizeof(BDataType) == 16 ? 8 : 4;
-        constexpr auto ds_read_a_mfma_rate =
-            (mfma_cycle - 4 + 2 * ds_read_a_issue_cycle - 1) / (2 * ds_read_a_issue_cycle);
-        constexpr auto ds_read_b_mfma_rate =
-            (mfma_cycle - 4 + 2 * ds_read_b_issue_cycle - 1) / (2 * ds_read_b_issue_cycle);
+        constexpr auto ds_read_a_issue_cycle = HotLoopInstList::A_LDS_Read_Width * sizeof(ADataType) == 16 ? 8 : 4;
+        constexpr auto ds_read_b_issue_cycle = HotLoopInstList::B_LDS_Read_Width * sizeof(BDataType) == 16 ? 8 : 4;
+        constexpr auto ds_read_a_mfma_rate = (mfma_cycle - 4 + 2 * ds_read_a_issue_cycle - 1) / (2 * ds_read_a_issue_cycle);
+        constexpr auto ds_read_b_mfma_rate = (mfma_cycle - 4 + 2 * ds_read_b_issue_cycle - 1) / (2 * ds_read_b_issue_cycle);
 
-        constexpr auto num_dsread_a_mfma =
-            (num_ds_read_inst_a + ds_read_a_mfma_rate - 1) / ds_read_a_mfma_rate;
-        constexpr auto num_dsread_b_mfma =
-            (num_ds_read_inst_b + ds_read_b_mfma_rate - 1) / ds_read_b_mfma_rate;
+        constexpr auto num_dsread_a_mfma = (num_ds_read_inst_a + ds_read_a_mfma_rate - 1) / ds_read_a_mfma_rate;
+        constexpr auto num_dsread_b_mfma = (num_ds_read_inst_b + ds_read_b_mfma_rate - 1) / ds_read_b_mfma_rate;
 
         // stage 1
         // Separate this part?
@@ -241,12 +235,93 @@ struct BlockwiseGemmXdlops_pipeline_bpreshuffle_v3_mx<BlockGemmPipelineScheduler
         //                                           ? sizeof(ComputeDataType) / sizeof(ADataType)
         //                                           : sizeof(ComputeDataType) / sizeof(BDataType);
         constexpr auto num_mfma_stage1 = num_mfma_inst - (num_dsread_a_mfma + num_dsread_b_mfma);
-        constexpr auto num_mfma_per_issue =
-            num_mfma_stage1 / (num_buffer_load_inst_a + num_buffer_load_inst_b);
+        constexpr auto num_mfma_per_issue = num_mfma_stage1 / (num_buffer_load_inst_a + num_buffer_load_inst_b);
         constexpr auto num_dswrite_per_issue_a = num_ds_write_inst_a / num_buffer_load_inst_a;
         constexpr auto num_dswrite_per_issue_b = num_ds_write_inst_b / num_buffer_load_inst_b;
 
-        static_for<0, num_buffer_load_inst_a, 1>{}([&](auto i) {
+        /*if(threadIdx.x == 0 && blockIdx.x == 0 && blockIdx.y == 0)
+        {
+            printf("num_mfma_inst = %d, mfma_cycle = %d, num_mfma_per_issue = %d\n", num_mfma_inst, mfma_cycle, num_mfma_per_issue);
+            printf("num_ds_read_inst        a = %d, b = %d\n", num_ds_read_inst_a, num_ds_read_inst_b);
+            printf("num_ds_write_inst       a = %d, b = %d\n", num_ds_write_inst_a, num_ds_write_inst_b);
+            printf("num_buffer_load_inst    a = %d, b = %d\n", num_buffer_load_inst_a, num_buffer_load_inst_b);
+            printf("num_dsread_mfma         a = %d, b = %d\n", num_dsread_a_mfma, num_dsread_b_mfma);
+            printf("ds_read_issue_cycle     a = %d, b = %d\n", ds_read_a_issue_cycle, ds_read_b_issue_cycle);
+            printf("ds_read_mfma_rate       a = %d, b = %d\n", ds_read_a_mfma_rate, ds_read_a_mfma_rate);
+            printf("num_dswrite_per_issue   a = %d, b = %d\n", num_dswrite_per_issue_a, num_dswrite_per_issue_b);
+        }*/
+
+                //__builtin_amdgcn_sched_group_barrier(0x020, 4, 0); // buff read
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x200, 1, 0); // DS write
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x200, 1, 0); // DS write
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x020, 1, 0); // buff read
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x020, 1, 0); // buff read
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x100, 1, 0); // DS read
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x100, 1, 0); // DS read
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x100, 1, 0); // DS read
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x100, 1, 0); // DS read
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x100, 1, 0); // DS read
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x100, 1, 0); // DS read
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x100, 1, 0); // DS read
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x100, 1, 0); // DS read
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+
+                /*__builtin_amdgcn_sched_group_barrier(0x020, 1, 0); // buff read
+                __builtin_amdgcn_sched_group_barrier(0x008, 2, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x100, 1, 0); // DS read
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x020, 1, 0); // buff read
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x100, 1, 0); // DS read
+                __builtin_amdgcn_sched_group_barrier(0x020, 1, 0); // buff read
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x100, 1, 0); // DS read
+                __builtin_amdgcn_sched_group_barrier(0x020, 1, 0); // buff read
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x100, 1, 0); // DS read
+                __builtin_amdgcn_sched_group_barrier(0x020, 1, 0); // buff read
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x100, 1, 0); // DS read
+                __builtin_amdgcn_sched_group_barrier(0x020, 1, 0); // buff read
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x100, 1, 0); // DS read
+                __builtin_amdgcn_sched_group_barrier(0x020, 1, 0); // buff read
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x100, 1, 0); // DS read
+                __builtin_amdgcn_sched_group_barrier(0x020, 1, 0); // buff read
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x100, 1, 0); // DS read
+                __builtin_amdgcn_sched_group_barrier(0x020, 1, 0); // buff read
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x020, 1, 0); // buff read
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x020, 1, 0); // buff read
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x020, 1, 0); // buff read
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x020, 1, 0); // buff read
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x200, 1, 0); // DS write
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
+                __builtin_amdgcn_sched_group_barrier(0x200, 1, 0); // DS write
+                __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA*/
+
+        /*static_for<0, num_buffer_load_inst_a, 1>{}([&](auto i) {
             ignore = i;
             static_for<0, num_dswrite_per_issue_a, 1>{}([&](auto idswrite) {
                 ignore = idswrite;
@@ -254,8 +329,7 @@ struct BlockwiseGemmXdlops_pipeline_bpreshuffle_v3_mx<BlockGemmPipelineScheduler
                 __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
             });
             __builtin_amdgcn_sched_group_barrier(0x020, 1, 0); // VMEM read
-            __builtin_amdgcn_sched_group_barrier(
-                0x008, num_mfma_per_issue - num_dswrite_per_issue_a, 0); // MFMA
+            __builtin_amdgcn_sched_group_barrier(0x008, num_mfma_per_issue - num_dswrite_per_issue_a, 0); // MFMA
         });
         static_for<0, num_buffer_load_inst_b, 1>{}([&](auto i) {
             ignore = i;
@@ -265,8 +339,7 @@ struct BlockwiseGemmXdlops_pipeline_bpreshuffle_v3_mx<BlockGemmPipelineScheduler
                 __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
             });
             __builtin_amdgcn_sched_group_barrier(0x020, 1, 0); // VMEM read
-            __builtin_amdgcn_sched_group_barrier(
-                0x008, num_mfma_per_issue - num_dswrite_per_issue_b, 0); // MFMA
+            __builtin_amdgcn_sched_group_barrier(0x008, num_mfma_per_issue - num_dswrite_per_issue_b, 0); // MFMA
         });
 
         // stage 2
@@ -300,7 +373,7 @@ struct BlockwiseGemmXdlops_pipeline_bpreshuffle_v3_mx<BlockGemmPipelineScheduler
                                                      0); // DS read
             }
             __builtin_amdgcn_sched_group_barrier(0x008, 1, 0); // MFMA
-        });
+        });*/
     }
 
     __host__ static constexpr TailNumber BlockLoopTailNum(index_t num_loop)
@@ -355,6 +428,7 @@ struct BlockwiseGemmXdlops_pipeline_bpreshuffle_v3_mx<BlockGemmPipelineScheduler
         const BScaleGridBuffer& b_scale_grid_buf,
         index_t num_loop) const
     {
+#if 1
         auto a_thread_buf = make_static_buffer<AddressSpaceEnum::Vgpr, ComputeTypeA>(
             a_thread_desc_.GetElementSpaceSize());
         auto b_thread_buf = make_static_buffer<AddressSpaceEnum::Vgpr, ComputeTypeB>(
@@ -469,7 +543,8 @@ struct BlockwiseGemmXdlops_pipeline_bpreshuffle_v3_mx<BlockGemmPipelineScheduler
                 });
             });
         });
-
+#endif
+        __builtin_amdgcn_sched_barrier(0);
         // main body
         if constexpr(HasMainLoop)
         {
@@ -478,6 +553,7 @@ struct BlockwiseGemmXdlops_pipeline_bpreshuffle_v3_mx<BlockGemmPipelineScheduler
             do
             {
                 auto LoopFunc = [&](auto mfma_reg_buf, auto local_read_buf, auto a_buf) {
+                    __builtin_amdgcn_s_barrier();
                     // Prefetch a_scales 2
                     static_for<0, MRepeat, 1>{}([&](auto m0) {
                         static_for<0, KRepeat, 1>{}([&](auto k0) {
@@ -538,15 +614,16 @@ struct BlockwiseGemmXdlops_pipeline_bpreshuffle_v3_mx<BlockGemmPipelineScheduler
                     b_scale_thread_copy.MoveSrcSliceWindow(
                         b_scale_grid_desc, make_multi_index(-NPerBlock, ScalesPerKBlockSize));
 
-                    // Local prefill A2
-                    block_sync_lds();
+                    // Local prefill A2:   ds_write(4dw) * 2
+                    //block_sync_lds();
+                    __builtin_amdgcn_s_barrier();
                     a_blockwise_copy.RunWrite(a_block_desc, a_block_buf.At(local_read_buf));
 
-                    // Global prefetch A1
+                    // Global prefetch A1:  buffer_load(4dw) * 2
                     a_blockwise_copy.RunRead(a_grid_desc, a_grid_buf);
                     a_blockwise_copy.MoveSrcSliceWindow(a_grid_desc, a_block_copy_step);
 
-                    // Global prefetch B2
+                    // Global prefetch B2:  buffer_load(4dw) * 2
                     b_blockwise_copy.Run(b_grid_desc,
                                          b_grid_buf,
                                          b_block_desc_n0_n1_k0_k1,
@@ -614,8 +691,10 @@ struct BlockwiseGemmXdlops_pipeline_bpreshuffle_v3_mx<BlockGemmPipelineScheduler
                         });     // NRepeat
                     });         // MRepeat
 
-                    // Local prefetch A2
-                    block_sync_lds();
+                    // Local prefetch A2: ds_read(4dw) * 8
+                    __builtin_amdgcn_s_waitcnt(0x827f);
+                    __builtin_amdgcn_s_barrier();
+                    //block_sync_lds(); // feifei remove
                     static_for<0, KRepeat, 1>{}([&](auto k) {
                         constexpr auto k_step =
                             k * xdlops_gemm.KPerXdlops * (KPack / xdlops_gemm.K1PerXdlops);
@@ -637,10 +716,13 @@ struct BlockwiseGemmXdlops_pipeline_bpreshuffle_v3_mx<BlockGemmPipelineScheduler
                         });
                     });
 
-                     HotLoopScheduler();
+                    //HotLoopScheduler();
                     __builtin_amdgcn_sched_barrier(0);
                 }; // LoopFunc
 
+                block_sync_lds();
+                block_sync_lds();
+                block_sync_lds();
                 LoopFunc(I0, I1, I0);
                 LoopFunc(I1, I0, I1);
 
