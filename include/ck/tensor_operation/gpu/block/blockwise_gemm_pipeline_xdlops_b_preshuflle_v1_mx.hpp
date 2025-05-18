@@ -499,12 +499,12 @@ struct BlockwiseGemmXdlops_pipeline_bpreshuffle_v1_mx<BlockGemmPipelineScheduler
                                     c_thread_desc_.CalculateOffset(make_tuple(m0, n0, 0));
 
                                 // MFMA accumulation
-                                xdlops_gemm.template Run<>(
+                                /*xdlops_gemm.template Run<>(
                                     a_thread_vec.template AsType<mfma_input_type_a>(),
                                     a_scale_thread_vec.template AsType<AScaleDataType>(),
                                     b_thread_vec.template AsType<mfma_input_type_b>(),
                                     b_scale_thread_vec.template AsType<BScaleDataType>(),
-                                    c_thread_buf.GetVectorTypeReference(Number<c_offset>{}));
+                                    c_thread_buf.GetVectorTypeReference(Number<c_offset>{}));*/
                             });
                         });
                     });
@@ -654,12 +654,12 @@ struct BlockwiseGemmXdlops_pipeline_bpreshuffle_v1_mx<BlockGemmPipelineScheduler
                             c_thread_desc_.CalculateOffset(make_tuple(m0, n0, 0));
 
                         // MFMA accumulation
-                        xdlops_gemm.template Run<>(
+                        /*xdlops_gemm.template Run<>(
                             a_thread_vec.template AsType<mfma_input_type_a>(),
                             a_scale_thread_vec.template AsType<AScaleDataType>(),
                             b_thread_vec.template AsType<mfma_input_type_b>(),
                             b_scale_thread_vec.template AsType<BScaleDataType>(),
-                            c_thread_buf.GetVectorTypeReference(Number<c_offset>{}));
+                            c_thread_buf.GetVectorTypeReference(Number<c_offset>{}));*/
                     });
                 });
             });
@@ -726,12 +726,12 @@ struct BlockwiseGemmXdlops_pipeline_bpreshuffle_v1_mx<BlockGemmPipelineScheduler
                             c_thread_desc_.CalculateOffset(make_tuple(m0, n0, 0));
 
                         // MFMA accumulation
-                        xdlops_gemm.template Run<>(
+                        /*xdlops_gemm.template Run<>(
                             a_thread_vec.template AsType<mfma_input_type_a>(),
                             a_scale_thread_vec.template AsType<AScaleDataType>(),
                             b_thread_vec.template AsType<mfma_input_type_b>(),
                             b_scale_thread_vec.template AsType<BScaleDataType>(),
-                            c_thread_buf.GetVectorTypeReference(Number<c_offset>{}));
+                            c_thread_buf.GetVectorTypeReference(Number<c_offset>{}));*/
                     });
                 });
             });
@@ -779,12 +779,12 @@ struct BlockwiseGemmXdlops_pipeline_bpreshuffle_v1_mx<BlockGemmPipelineScheduler
                             c_thread_desc_.CalculateOffset(make_tuple(m0, n0, 0));
 
                         // MFMA accumulation
-                        xdlops_gemm.template Run<>(
+                        /*xdlops_gemm.template Run<>(
                             a_thread_vec.template AsType<mfma_input_type_a>(),
                             a_scale_thread_vec.template AsType<AScaleDataType>(),
                             b_thread_vec.template AsType<mfma_input_type_b>(),
                             b_scale_thread_vec.template AsType<BScaleDataType>(),
-                            c_thread_buf.GetVectorTypeReference(Number<c_offset>{}));
+                            c_thread_buf.GetVectorTypeReference(Number<c_offset>{}));*/
                     });
                 });
             });

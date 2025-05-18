@@ -46,6 +46,8 @@ using CShuffleDataType = CDataType;
 using A0Layout = Row;
 using B0Layout = Col;
 using CLayout  = Row;
+using AScaleLayout = Row;
+using BScaleLayout = Col;
 
 void preShuffleBuffer(const F4* src, F4* dst, int N, int K, int NXdl)
 {
@@ -74,6 +76,52 @@ void preShuffleBuffer(const F4* src, F4* dst, int N, int K, int NXdl)
                               k1 * KPack * NLane + n1 * KPack + k2;
 
             dst[outputIndex / 2] = src[(n * K + k) / 2];
+        }
+    }
+}
+template <bool KLast>
+void preShuffleScaleBuffer(ck::e8m0_bexp_t* src, ck::e8m0_bexp_t* dst, int MN, int K)
+{
+    int MNXdlPack = 2;
+    int KXdlPack  = 2;
+
+    int XdlMNThread = 16;
+    int XdlKThread  = 64 / XdlMNThread;
+
+    int K0 = K / KXdlPack / XdlKThread; // KRepeat
+
+    // The 4 16x128 building blocks will be packed into 1 32x256 for F4
+    // The 8 16x16x128 mfma will be packed into 1 32x32x256 for F4
+
+    // unfold the MN32xK(256/32) scale buffer
+    //    4            16             2           2
+    // To XdlKThread-> XdlMNThread -> KXdlPack -> MNXdlPack
+    // Then, MNRepeat->KRepeat
+
+    for(int n = 0; n < MN; ++n)
+    {
+        for(int k = 0; k < K; ++k)
+        {
+            int n0    = n / (XdlMNThread * MNXdlPack); // i MNRepeat
+            int tempn = n % (XdlMNThread * MNXdlPack);
+            int n1    = tempn % XdlMNThread; // i XdlMNThread
+            int n2    = tempn / XdlMNThread; // i MNXdlPack
+
+            int k0    = k / (XdlKThread * KXdlPack); // i KRepeat
+            int tempk = k % (XdlKThread * KXdlPack);
+            int k1    = tempk % XdlKThread; // i XdlKThread
+            int k2    = tempk / XdlKThread; // i KXdlPack
+
+            int outputIndex = n0 * MNXdlPack * KXdlPack * XdlMNThread * XdlKThread * K0 +
+                              k0 * MNXdlPack * KXdlPack * XdlMNThread * XdlKThread +
+                              k1 * MNXdlPack * KXdlPack * XdlMNThread + n1 * MNXdlPack * KXdlPack +
+                              k2 * MNXdlPack + n2;
+            // src[n * K + k] = ck::type_convert<ck::e8m0_bexp_t>(static_cast<float>(powf(2.0f, n2 +
+            // k2 * MNXdlPack)));
+            if constexpr(KLast)
+                dst[outputIndex] = src[n * K + k];
+            else
+                dst[outputIndex] = src[k * MN + n];
         }
     }
 }
@@ -109,12 +157,12 @@ int main(int argc, char* argv[])
     bool do_verification = true;
     int init_method      = 1;
     bool time_kernel     = false;
-    bool flush_cache     = true;
+    bool flush_cache     = false;
 
     // GEMM shape
-    ck::index_t M = 3840;
-    ck::index_t N = 4096;
-    ck::index_t K = 4096;
+    ck::index_t M = 128; //3840;
+    ck::index_t N = 128; //4096;
+    ck::index_t K = 512; //4096;
 
     ck::index_t StrideA = K;
     ck::index_t StrideB = K;
@@ -245,17 +293,58 @@ int main(int argc, char* argv[])
     a_scale_device_buf.ToDevice(a_m_k_scale.mData.data());
     b_scale_device_buf.ToDevice(b_k_n_scale.mData.data());
 
+    // do scale preshuffle
+    Tensor<XDataType> a_shuffled_scale(f_host_tensor_descriptor(M, K / ScaleBlockSize, Scale_Stride_AM, AScaleLayout{})); // scales for A
+    Tensor<XDataType> b_shuffled_scale(f_host_tensor_descriptor(K / ScaleBlockSize, N, Scale_Stride_BN, BScaleLayout{})); // scales for B
+    preShuffleScaleBuffer<ck::is_same_v<A0Layout, Row>>(a_m_k_scale.mData.data(), a_shuffled_scale.mData.data(), M, K / ScaleBlockSize);
+    preShuffleScaleBuffer<ck::is_same_v<B0Layout, Col>>(b_k_n_scale.mData.data(), b_shuffled_scale.mData.data(), N, K / ScaleBlockSize);
+    a_scale_device_buf.ToDevice(a_shuffled_scale.mData.data());
+    b_scale_device_buf.ToDevice(b_shuffled_scale.mData.data());
 #if 0
-    printf("print a_m_k_scale:\n");
-    for(int m = 0; m < M; ++m)
-    {
-        for(int k = 0; k < (K + ScaleBlockSize - 1) / ScaleBlockSize; ++k)
-        {
-            printf("%f ", ck::type_convert<float>(a_m_k_scale(m, k)));
-        }
-        printf("\n");
-    }
-#endif
+     printf("a_scale:\n");
+     for(ck::index_t i = 0; i < M; i++)
+     {
+         for(ck::index_t j = 0; j < K / ScaleBlockSize; j++)
+         {
+             // a_m_k_scale(i, j) =
+             //     ck::type_convert<XDataType>(static_cast<float>(powf(2.0f, (j / 4) % 4)));
+             //a_m_k_scale(i, j) =ck::type_convert<XDataType>(static_cast<float>(1.0f));
+             //a_shuffled_scale(i, j) =ck::type_convert<XDataType>(static_cast<float>(1.0f));
+             printf("%02x, ", *reinterpret_cast<uint8_t*>(&a_m_k_scale(i, j)));
+         }
+         printf("\n");
+     }
+     printf("b_scale:\n");
+     for(ck::index_t i = 0; i < N; i++)
+     {
+         for(ck::index_t j = 0; j < K / ScaleBlockSize; j++)
+         {
+     //         // b_k_n_scale(j, i) =
+     //             // ck::type_convert<XDataType>(static_cast<float>(powf(2.0f, (j / 4) % 4)));
+             // b_k_n_scale(j, i) =ck::type_convert<XDataType>(static_cast<float>(1.0f));
+             // b_shuffled_scale(j, i) =ck::type_convert<XDataType>(static_cast<float>(1.0f));
+             printf("%02x, ", *reinterpret_cast<uint8_t*>(&b_k_n_scale(j, i)));
+         }
+         printf("\n");
+     }
+
+     printf("a_shuffled_scale:\n");
+     for(ck::index_t i = 0; i < M * K / ScaleBlockSize; i++)
+     {
+         printf("%02x, ", *reinterpret_cast<uint8_t*>(&(a_shuffled_scale.mData.data()[i])));
+         if(i % 64 == 63)
+             printf("\n");
+     }
+     printf("b_shuffled_scale:\n");
+     for(ck::index_t i = 0; i < N * K / ScaleBlockSize; i++)
+     {
+         printf("%02x, ", *reinterpret_cast<uint8_t*>(&(b_shuffled_scale.mData.data()[i])));
+         if(i % 64 == 63)
+             printf("\n");
+     }
+
+    return 0;
+#endif    
 
     auto a_element_op   = AElementOp{};
     auto b_element_op   = BElementOp{};

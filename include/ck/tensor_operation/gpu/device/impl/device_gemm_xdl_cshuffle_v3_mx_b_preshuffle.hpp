@@ -307,6 +307,15 @@ struct DeviceGemmMX_Xdl_CShuffleV3_BPreShuffle
                           : 1
                     : 2;
 
+#if 1
+                const auto kernel = kernel_gemm_xdl_cshuffle_v3_b_preshuffle<
+                    GridwiseGemm,
+                    false,
+                    InMemoryDataOperationEnum::Set,
+                    minimum_occupancy,
+                    TailNumber::Odd>;
+                Run(kernel);
+#else
             if(has_main_k_block_loop)
             {
                 // Tail number always full
@@ -407,7 +416,7 @@ struct DeviceGemmMX_Xdl_CShuffleV3_BPreShuffle
                     }
                 }
             }
-
+#endif
             return ave_time;
         }
 
