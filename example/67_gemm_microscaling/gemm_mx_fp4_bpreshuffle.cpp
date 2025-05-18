@@ -132,7 +132,9 @@ using AElementOp = PassThrough; // elementwise transformation for A matrix
 using BElementOp = PassThrough; // elementwise transformation for B matrix
 using CElementOp = PassThrough; // elementwise transformation for C matrix
 
+constexpr ck::index_t DataPackedSize = 2;  // Packed representation of data
 constexpr ck::index_t ScaleBlockSize = 32; // scaling block size
+constexpr ck::index_t KPerBlock      = 256 / DataPackedSize; // 256 f4 = 128 fp4x2
 
 constexpr auto GemmSpec = ck::tensor_operation::device::GemmSpecialization::Default;
 
@@ -142,7 +144,7 @@ using DeviceOpInstance = ck::tensor_operation::device::DeviceGemmMX_Xdl_CShuffle
     A0DataType,  A1DataType,  B0DataType,   B1DataType,   CDataType,    AccDataType,  CShuffleDataType, 
     AElementOp, BElementOp, CElementOp,  GemmSpec,         
     ScaleBlockSize,   256,   
-    128,  128,   128,        
+    128,  128,   KPerBlock,        
     32,    32,               
     16,    16,               
     8,     2,                
@@ -162,7 +164,7 @@ int main(int argc, char* argv[])
     // GEMM shape
     ck::index_t M = 128; //3840;
     ck::index_t N = 128; //4096;
-    ck::index_t K = 512; //4096;
+    ck::index_t K = 256; //4096;
 
     ck::index_t StrideA = K;
     ck::index_t StrideB = K;
