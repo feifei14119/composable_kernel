@@ -290,24 +290,6 @@ struct BlockwiseGemmXdlops_pipeline_bpreshuffle_v1_mx<BlockGemmPipelineScheduler
         a_blockwise_copy.MoveSrcSliceWindow(a_grid_desc, a_block_copy_step);
         b_blockwise_copy.MoveSrcSliceWindow(b_grid_desc, b_block_copy_step);
  
-        if(threadIdx.x == 0 && blockIdx.x == 0)
-        {
-            printf("MRepeat = %d, MXdlPack = %d\n",MRepeat, MXdlPack);
-            printf("NRepeat = %d, NXdlPack = %d\n",NRepeat, NXdlPack);
-            printf("KRepeat = %d, KXdlPack = %d\n",KRepeat, KXdlPack);
-            printf("AScaleDataType = %d, mx_scale_t = %d, scale_pack_size_a = %d\n",
-                sizeof(AScaleDataType), sizeof(mx_scale_t), scale_pack_size_a);
-            printf("KPack = %d, K0PerXdlops = %d, ScaleBlockSize = %d, num_input_blks = %d, ScalesPerXdlopsRunPerThread = %d\n",
-                    KPack, 
-                    xdlops_gemm.K0PerXdlops,
-                    ScaleBlockSize,
-                    xdlops_gemm.mfma_instr.num_input_blks,
-                    ScalesPerXdlopsRunPerThread);
-            printf("a_scale_thread_buf = %d\n",a_scale_thread_desc.GetElementSpaceSize().value);
-            printf("b_scale_thread_buf = %d\n",b_scale_thread_desc.GetElementSpaceSize().value);
-            printf("MRepeat / MXdlPack = %d\n",MRepeat / MXdlPack);
-            printf("KRepeat / KXdlPack = %d\n",KRepeat / KXdlPack);
-        }
         // Prefetch a_scales to buf 0
         static_for<0, MRepeat / MXdlPack, 1>{}([&](auto m0) {
             static_for<0, KRepeat / KXdlPack, 1>{}([&](auto k0) {
@@ -989,6 +971,12 @@ struct BlockwiseGemmXdlops_pipeline_bpreshuffle_v1_mx<BlockGemmPipelineScheduler
         else if constexpr(TailNum == TailNumber::Odd)
 #endif        
         {
+            if(threadIdx.x == 0 && blockIdx.x == 0)
+            {
+                printf("MRepeat = %d, MXdlPack = %d, loop = %d\n", MRepeat, MXdlPack, MRepeat / MXdlPack);
+                printf("NRepeat = %d, NXdlPack = %d, loop = %d\n", NRepeat, NXdlPack, NRepeat / NXdlPack);
+                printf("KRepeat = %d, KXdlPack = %d, loop = %d\n", KRepeat, KXdlPack, KRepeat / KXdlPack);
+            }
             static_for<0, MRepeat / MXdlPack, 1>{}([&](auto m0) {
                 static_for<0, NRepeat / NXdlPack, 1>{}([&](auto n0) {
                     static_for<0, KRepeat / KXdlPack, 1>{}([&](auto k0) {
