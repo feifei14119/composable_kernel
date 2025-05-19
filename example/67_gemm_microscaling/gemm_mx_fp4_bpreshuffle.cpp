@@ -30,6 +30,7 @@ using F16       = ck::half_t;
 using BF16      = ck::bhalf_t;
 using F32       = float;
 using XDataType = ck::e8m0_bexp_t;
+using XPackedDataType = int32_t;
 
 using Row = ck::tensor_layout::gemm::RowMajor;
 using Col = ck::tensor_layout::gemm::ColumnMajor;
@@ -141,16 +142,16 @@ constexpr auto GemmSpec = ck::tensor_operation::device::GemmSpecialization::Defa
 // clang-format off
 using DeviceOpInstance = ck::tensor_operation::device::DeviceGemmMX_Xdl_CShuffleV3_BPreShuffle<
     A0Layout,    B0Layout,    CLayout,          
-    A0DataType,  A1DataType,  B0DataType,   B1DataType,   CDataType,    AccDataType,  CShuffleDataType, 
+    A0DataType,  XPackedDataType,  B0DataType,   XPackedDataType,   CDataType,    AccDataType,  CShuffleDataType, 
     AElementOp, BElementOp, CElementOp,  GemmSpec,         
     ScaleBlockSize,   256,   
-    128,  128,   KPerBlock,        
-    32,    32,               
+    128,    64,   KPerBlock,        
     16,    16,               
-    8,     2,                
-    S<4, 64, 1>,   S<1, 0, 2>,   S<1, 0, 2>,   2,   32,   32,   0,            
-    S<4, 64, 1>,   S<1, 0, 2>,   S<1, 0, 2>,   2,   32,   32,   0,            
-    2,   1,   S<1, 32, 1, 8>,  8,                
+    16,    16,               
+    4,     2,                
+    S<8, 32, 1>,   S<1, 0, 2>,   S<1, 0, 2>,   2,   16,   16,   0,            
+    S<8, 32, 1>,   S<1, 0, 2>,   S<1, 0, 2>,   2,   16,   16,   0,            
+    2,   2,   S<1, 32, 1, 8>,  8,                
     ck::BlockGemmPipelineScheduler::Intrawave, ck::BlockGemmPipelineVersion::v1, A0DataType, B0DataType>;
 // clang-format on
 
@@ -362,9 +363,9 @@ int main(int argc, char* argv[])
     auto invoker = device_op.MakeInvoker();
     auto argument =
         device_op.MakeArgument(static_cast<A0DataType*>(a_device_buf.GetDeviceBuffer()),
-                               static_cast<XDataType*>(a_scale_device_buf.GetDeviceBuffer()),
+                               static_cast<XPackedDataType*>(a_scale_device_buf.GetDeviceBuffer()),
                                static_cast<B0DataType*>(b_device_buf.GetDeviceBuffer()),
-                               static_cast<XDataType*>(b_scale_device_buf.GetDeviceBuffer()),
+                               static_cast<XPackedDataType*>(b_scale_device_buf.GetDeviceBuffer()),
                                static_cast<CDataType*>(c_device_buf.GetDeviceBuffer()),
                                M,
                                N,
