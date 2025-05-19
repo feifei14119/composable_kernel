@@ -157,13 +157,13 @@ using DeviceOpInstance = ck::tensor_operation::device::DeviceGemmMX_Xdl_CShuffle
 int main(int argc, char* argv[])
 {
     bool do_verification = true;
-    int init_method      = 1;
+    int init_method      = 2;
     bool time_kernel     = false;
     bool flush_cache     = false;
 
     // GEMM shape
-    ck::index_t M = 128; //3840;
-    ck::index_t N = 128; //4096;
+    ck::index_t M = 256; //3840;
+    ck::index_t N = 256; //4096;
     ck::index_t K = 256; //4096;
 
     ck::index_t StrideA = K;

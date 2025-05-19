@@ -177,14 +177,6 @@ struct GridwiseGemmMX_xdl_cshuffle_v3_b_preshuffle
                                                   ComputeTypeB,
                                                   is_single_rate_mfma,
                                                   is_scale_mfma>;
-    static constexpr index_t KPack = math::max(lcm_AK1_BK1, mfma_selector::selected_mfma.k_per_blk);
-
-    static constexpr index_t KGroup = 1;//mfma_selector::selected_mfma.k_per_blk == 32 ? 2 : 1;
-    static constexpr index_t KLane =
-        mfma_selector::GetKPerXdlops() / mfma_selector::GetK1PerXdlops();
-    static constexpr index_t KRepeat = KPerBlock / KLane / (KPack / KGroup);
-    static constexpr index_t NLane   = NPerXdl;
-    static constexpr index_t NWave   = NPerBlock / NPerXdl / NXdlPerWave;
 
     using ThisThreadBlock = ThisThreadBlock<BlockSize>;
 
@@ -203,6 +195,15 @@ struct GridwiseGemmMX_xdl_cshuffle_v3_b_preshuffle
         else
             return 1;
     }();
+
+    static constexpr index_t KPack = math::max(lcm_AK1_BK1, mfma_selector::selected_mfma.k_per_blk/APackedSize);
+
+    static constexpr index_t KGroup = 1;//mfma_selector::selected_mfma.k_per_blk == 32 ? 2 : 1;
+    static constexpr index_t KLane =
+        mfma_selector::GetKPerXdlops() / mfma_selector::GetK1PerXdlops();
+    static constexpr index_t KRepeat = KPerBlock / KLane / (KPack / KGroup);
+    static constexpr index_t NLane   = NPerXdl;
+    static constexpr index_t NWave   = NPerBlock / NPerXdl / NXdlPerWave;
 
     __host__ static auto CalculateGridSize(index_t M, index_t N, index_t KBatch)
     {

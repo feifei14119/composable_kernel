@@ -1088,6 +1088,23 @@ struct BlockwiseGemmXdlops_pipeline_bpreshuffle_v1_mx<BlockGemmPipelineScheduler
         }
         else if constexpr(TailNum == TailNumber::Odd)
         {
+            if(threadIdx.x == 0 && blockIdx.x == 0)
+            {
+                static constexpr index_t KPerThread    = KPerBlock / xdlops_gemm.K0PerXdlops;
+                static constexpr index_t KRepeat       = KPerThread / KPack;
+                printf("KPerBlock = %d, K0PerXdlops = %d, KPerThread = %d; KPack = %d, KRepeat = %d\n",
+                    KPerBlock,
+                    xdlops_gemm.K0PerXdlops,
+                    KPerThread,
+                    KPack, KRepeat
+                );
+                printf("%d, %d, %d; %d, %d, %d\n",
+                    MRepeat / MXdlPack,
+                    NRepeat / NXdlPack,
+                    KRepeat / KXdlPack,
+                    KXdlPack, MXdlPack, NXdlPack
+                );
+            }
 #if 0            
             static_for<0, MRepeat, 1>{}([&](auto m0) {
                 static_for<0, NRepeat, 1>{}([&](auto n0) {
