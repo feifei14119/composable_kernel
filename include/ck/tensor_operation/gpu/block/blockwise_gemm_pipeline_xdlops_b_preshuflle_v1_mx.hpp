@@ -1028,6 +1028,11 @@ struct BlockwiseGemmXdlops_pipeline_bpreshuffle_v1_mx<BlockGemmPipelineScheduler
                                         b_thread_vec.template AsType<mfma_input_type_b>(),
                                         b_scale_thread_vec.template AsType<mfma_scale_input_type_b>(),
                                         c_thread_buf.GetVectorTypeReference(Number<c_offset>{}));
+
+                                    if(threadIdx.x == 0 && blockIdx.x == 0)
+                                    {
+                                        printf("%.1f,", type_convert<float>(c_thread_buf[I0]));
+                                    }
                                 }); // for loop NXdlPack
                             });     // for loop MXdlPack
                         });         // for loop KXdlPack

@@ -236,6 +236,8 @@ struct DeviceGemmMX_Xdl_CShuffleV3_BPreShuffle
 
             index_t gdx, gdy, gdz;
             std::tie(gdx, gdy, gdz) = GridwiseGemm::CalculateGridSize(arg.M, arg.N, arg.KBatch);
+            printf("LAUNCH: %d, %d, %d\n", gdx, gdy, gdz);
+            printf("M = %d, N = %d, KBatch = %d\n", arg.M, arg.N, arg.KBatch);
 
             float ave_time = 0;
 

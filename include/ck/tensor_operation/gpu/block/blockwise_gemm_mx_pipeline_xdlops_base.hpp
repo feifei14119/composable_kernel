@@ -397,7 +397,7 @@ struct BlockwiseGemmXdlops_mx_pipeline_base
                                                 I1));
 
     // B[N0, N1, N2, KPack]
-    static constexpr auto b_thread_desc_ =
+    /*static constexpr auto b_thread_desc_ =
         make_naive_tensor_descriptor(make_tuple(Number<NRepeat / NXdlPack>{},
                                                 I1,
                                                 Number<KRepeat>{},
@@ -407,7 +407,14 @@ struct BlockwiseGemmXdlops_mx_pipeline_base
                                                 Number<KRepeat * NRepeat * KPack>{},
                                                 Number<NRepeat * KPack>{},
                                                 Number<KPack>{},
-                                                I1));
+                                                I1));*/
+    static constexpr auto b_thread_desc_ =
+        make_naive_tensor_descriptor_packed(
+        make_tuple(
+            Number<NRepeat>{}, 
+            I1, 
+            Number<KRepeat>{}, 
+            Number<KPack>{}));
 
     // C[M, N, NumRegXdlops]
     static constexpr auto c_thread_desc_ =

@@ -209,6 +209,8 @@ struct GridwiseGemmMX_xdl_cshuffle_v3_b_preshuffle
 
     __host__ static auto CalculateGridSize(index_t M, index_t N, index_t KBatch)
     {
+        printf("CalculateGridSize: M = %d, N = %d\n", M, N);
+        printf("CalculateGridSize: MPerBlock = %d, NPerBlock = %d\n", MPerBlock, NPerBlock);
         return std::make_tuple(Block2CTileMap::CalculateGridSize(M, N), 1, KBatch);
     }
 
@@ -1247,9 +1249,13 @@ struct GridwiseGemmMX_xdl_cshuffle_v3_b_preshuffle
 
             //printf("lcm_AK1_BK1 = %d, k_per_blk = %d, KPack = %d\n",lcm_AK1_BK1, mfma_selector::selected_mfma.k_per_blk, KPack);
             printf("KPack = %d\n", KPack);
-            printf("GetKPerXdlops = %d, GetK1PerXdlops = %d\n",mfma_selector::GetKPerXdlops(), mfma_selector::GetKPerXdlops());
+            static constexpr index_t MWaves = MPerBlock / (MXdlPerWave * MPerXdl);
+            static constexpr index_t NWaves = NPerBlock / (NXdlPerWave * NPerXdl);
+            printf("MPerBlock = %d, MRepeat = %d, MPerXdl = %d, MWaves = %d, MXdlPack = %d\n", MPerBlock, MXdlPerWave, MPerXdl, MWaves, MXdlPack);
+            printf("NPerBlock = %d, NRepeat = %d, NPerXdl = %d, NWaves = %d, NXdlPack = %d\n", NPerBlock, NXdlPerWave, NPerXdl, NWaves, NXdlPack);
             printf("KPerBlock = %d, KLane = %d, KPack = %d, KGroup = %d\n",KPerBlock, KLane, KPack, KGroup);
-            printf("KRepeat = %d\n",KRepeat);
+
+            printf("GetKPerXdlops = %d, GetK1PerXdlops = %d\n",mfma_selector::GetKPerXdlops(), mfma_selector::GetKPerXdlops());
         }
         const auto a_grid_buf = make_dynamic_buffer<AddressSpaceEnum::Global>(
             p_a_grid, a_grid_desc_ak0_m_ak1.GetElementSpaceSize());
@@ -1457,6 +1463,8 @@ struct GridwiseGemmMX_xdl_cshuffle_v3_b_preshuffle
 
         // shuffle C and write out
         {
+            #if 1
+            //printf("tid = %d, bid = %d, c = %f\n", threadIdx.x, blockIdx.x, type_convert<float>(c_thread_buf[I0]));
             static_assert(MXdlPerWave % CShuffleMXdlPerWavePerShuffle == 0 &&
                               NXdlPerWave % CShuffleNXdlPerWavePerShuffle == 0,
                           "wrong!");
@@ -1672,6 +1680,7 @@ struct GridwiseGemmMX_xdl_cshuffle_v3_b_preshuffle
                         c_grid_desc_mblock_mperblock_nblock_nperblock, c_global_step);
                 }
             });
+            #endif
         }
     }
 
