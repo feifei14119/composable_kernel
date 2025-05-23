@@ -516,14 +516,6 @@ struct BlockwiseGemmXdlops_pipeline_bns_gufusion_v3<BlockGemmPipelineScheduler::
         b_blockwise_copy.RunWrite(b_block_desc, b_block_buf);
         b_blockwise_copy_up.RunWrite(b_block_desc, b_block_buf_up);
 
-        if(blockIdx.x + blockIdx.y == 0){
-            uint32_t idx = threadIdx.x + 2048+128;
-            printf("[%d] 0x%02X\n",
-                idx,
-                b_block_buf_up[idx].data
-                );
-        }
-
         // Global prefetch 2
         a_blockwise_copy.RunRead(a_grid_desc, a_grid_buf);
         b_blockwise_copy.RunRead(b_grid_desc, b_grid_buf);
@@ -1337,7 +1329,7 @@ struct BlockwiseGemmXdlops_pipeline_bns_gufusion_v3<BlockGemmPipelineScheduler::
                                         b_scale_thread_vec_up
                                             .template AsType<mfma_scale_input_type_b>(),
                                         c_thread_buf_up.GetVectorTypeReference(Number<c_offset>{}));
-#if 1
+#if 0
                                     printf(
                                         "blkIdx: %u, blkIdy: %u, tidx: %u, imxdl: %d, inxdl: "
                                         "%d, ikxdl: %d, a_thread_vec=<%.2f, %.2f, %.2f, %.2f>, "

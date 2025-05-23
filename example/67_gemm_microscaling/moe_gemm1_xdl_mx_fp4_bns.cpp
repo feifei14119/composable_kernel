@@ -175,7 +175,7 @@ using DeviceOpInstance                     = ck::tensor_operation::device::Devic
 int main(int argc, char* argv[])
 {
     bool do_verification = true;
-    int init_method      = 2;//7; 
+    int init_method      = 1;//7; 
     bool time_kernel     = false;
 
     // per expert:

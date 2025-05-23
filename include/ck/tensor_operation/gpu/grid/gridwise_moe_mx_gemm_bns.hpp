@@ -1103,7 +1103,7 @@ struct GridwiseMoeGemmMXBNS
             c_shuffle_block_desc_mblock_mperblock_nblock_nperblock.GetElementSpaceSize();
 
         return math::max((a_block_space_size_aligned * sizeof(ADataType) +
-                          b_block_space_size_aligned * sizeof(BDataType)),
+                          b_block_space_size_aligned * sizeof(BDataType)) * 2,
                          c_block_size * sizeof(CShuffleDataType));
     }
 
@@ -1835,7 +1835,7 @@ struct GridwiseMoeGemmMXBNS
                                         }
                                         else if(ActivationOperation == Activation::gelu_and_mul)
                                         {
-                                            /*float gate = c_thread_buf[cidx];
+                                            float gate = c_thread_buf[cidx];
                                             float up   = c_thread_buf_up[cidx];
                                             if constexpr(MulRoutedWeight)
                                             {
@@ -1843,9 +1843,9 @@ struct GridwiseMoeGemmMXBNS
                                                 up   = up * topk_weights.AsType<float>()[m5];
                                             }
                                             tensor_operation::element_wise::Gelu{}(gate, gate);
-                                            c_thread_buf_fp32(cidx) = gate * up;*/
+                                            c_thread_buf_fp32(cidx) = gate * up;
 
-                                            float gate = c_thread_buf[cidx];
+                                            /*float gate = c_thread_buf[cidx];
                                             float up   = c_thread_buf_up[cidx];
                                             if constexpr(MulRoutedWeight)
                                             {
@@ -1853,7 +1853,7 @@ struct GridwiseMoeGemmMXBNS
                                                 //up   = up * topk_weights.AsType<float>()[m5];
                                             }
                                             tensor_operation::element_wise::Gelu{}(gate, gate);
-                                            c_thread_buf_fp32(cidx) = up;
+                                            c_thread_buf_fp32(cidx) = up;*/
                                         }
                                     }
                                     else
