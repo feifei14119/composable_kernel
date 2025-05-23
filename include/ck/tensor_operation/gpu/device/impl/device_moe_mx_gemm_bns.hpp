@@ -186,6 +186,7 @@ struct DeviceMoeGemmMXBNS : public DeviceMoEGemmMXBPreShuffle<ALayout,
 
             index_t gdx, gdy, gdz;
             std::tie(gdx, gdy, gdz) = GridwiseGemm::CalculateGridSize(arg.M, arg.N);
+            printf("[LAUNCH] %d, %d, %d\n", gdx, gdy, gdz);
 
             float ave_time = 0;
 
