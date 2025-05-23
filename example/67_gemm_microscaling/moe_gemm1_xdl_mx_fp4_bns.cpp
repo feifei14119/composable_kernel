@@ -147,9 +147,9 @@ constexpr ck::index_t ScaleBlockSize = 32;                   // scaling block si
 constexpr ck::index_t KPerBlock      = 256 / DataPackedSize; // 256 f4 = 128 fp4x2
 static constexpr ck::index_t Nswizzle = false;
 static constexpr ck::index_t ActOP    = 0; // 0: gelu_and_mul, 1: silu_and_mul
-static constexpr ck::index_t MPerBlock = 32; //(16*2) // 128;
-static constexpr ck::index_t NPerBlock = 32; //(16*2) // 128
-static constexpr ck::index_t BlockSize = 64; //256
+static constexpr ck::index_t MPerBlock = 128;
+static constexpr ck::index_t NPerBlock = 128;
+static constexpr ck::index_t BlockSize = 256;
 static constexpr bool MulRoutedWeight = true;
 
 // clang-format off
@@ -161,13 +161,13 @@ using DeviceOpInstance                     = ck::tensor_operation::device::Devic
     MPerBlock,      NPerBlock,    KPerBlock,
     16,   16,   // a load elemnt fp4 * DataPackedSize
     16,   16,  // xdl M/N
-    2,    2,    // repeat 4,4(w/o pack)
-    //S<8, 32, 1>, S<1, 0, 2>,     S<1, 0, 2>,    2, 16, 16, 0,
-    S<8, 8, 1>, S<1, 0, 2>,     S<1, 0, 2>,    2, 16, 16, 0,
-    //S<8, 32, 1>, S<1, 0, 2>,     S<1, 0, 2>,    2, 16, 16, 0,
-    S<8, 8, 1>, S<1, 0, 2>,     S<1, 0, 2>,    2, 16, 16, 0,
-    //2,    2,     S<1, 32, 1, 8>, S<8, 1, 1, 1>,
-    2,    2,     S<1, 8, 1, 8>, S<2, 1, 1, 1>,
+    4,    4,    // repeat 4,4(w/o pack)
+    S<8, 32, 1>, S<1, 0, 2>,     S<1, 0, 2>,    2, 16, 16, 0,
+    //S<8, 8, 1>, S<1, 0, 2>,     S<1, 0, 2>,    2, 16, 16, 0,
+    S<8, 32, 1>, S<1, 0, 2>,     S<1, 0, 2>,    2, 16, 16, 0,
+    //S<8, 8, 1>, S<1, 0, 2>,     S<1, 0, 2>,    2, 16, 16, 0,
+    2,    2,     S<1, 32, 1, 8>, S<8, 1, 1, 1>,
+    //2,    2,     S<1, 8, 1, 8>, S<2, 1, 1, 1>,
     ck::BlockGemmPipelineScheduler::Intrawave, ck::BlockGemmPipelineVersion::v3, 
     ActOP, Nswizzle, true, MulRoutedWeight, ck::index_t, A0DataType>;
 // clang-format on
@@ -175,20 +175,20 @@ using DeviceOpInstance                     = ck::tensor_operation::device::Devic
 int main(int argc, char* argv[])
 {
     bool do_verification = true;
-    int init_method      = 1;//7; 
-    bool time_kernel     = false;
+    int init_method      = 1; 
+    bool time_kernel     = true;
 
     // per expert:
     // GEMM shape
-    constexpr ck::index_t sorted_tile_num = 2; // feifei debug
+    constexpr ck::index_t sorted_tile_num = 13;
     constexpr ck::index_t valid_tile_num  = sorted_tile_num;
     ck::index_t sorted_size               = sorted_tile_num * MPerBlock;
     ck::index_t valid_size                = valid_tile_num  * MPerBlock;
 
-    ck::index_t N       = 32; // 256
-    ck::index_t K       = 256;
-    ck::index_t experts = 2;
-    ck::index_t tokens  = 1;
+    ck::index_t N       = 4096;
+    ck::index_t K       = 6144;
+    ck::index_t experts = 8;
+    ck::index_t tokens  = 832;
     ck::index_t topk    = 2;
 
     if(argc == 1)
@@ -411,7 +411,7 @@ int main(int argc, char* argv[])
         }
         printf("\n");
     }*/
-    printf("scale b: \n");
+    /*printf("scale b: \n");
     for(int e = 0; e < experts; e++)
     {
         printf("e: %d\n", e);
@@ -470,7 +470,7 @@ int main(int argc, char* argv[])
             }
             printf("\n");
         }
-    }
+    }*/
 
     sorted_token_ids_dev.ToDevice(sorted_token_ids.mData.data());
     expert_ids_dev.ToDevice(expert_ids.mData.data());
@@ -486,7 +486,7 @@ int main(int argc, char* argv[])
     auto b_element_op   = BElementOp{};
     auto cde_element_op = CDEElementOp{};
 
-    printf("b0_e_n_k:\n");
+    /*printf("b0_e_n_k:\n");
     for(int e = 0; e < experts; ++e)
     {
         printf("e: %d\n", e);
@@ -510,7 +510,7 @@ int main(int argc, char* argv[])
             printf("\n");
         }
         printf("\n");
-    }
+    }*/
 #if 0
     printf("a0_t_k_k:\n");
     for(int t = 0; t < tokens; ++t)
@@ -716,7 +716,7 @@ int main(int argc, char* argv[])
                                                       PassThrough{},
                                                       PassThrough{},
                                                       PassThrough{});
-
+                                                      
         ref_invoker.Run(ref_argument);
         for(int m = 0; m < valid_size; ++m)
         {
@@ -736,7 +736,7 @@ int main(int argc, char* argv[])
 
         e_device_buf.FromDevice(e_t_k_n_device_result.mData.data());
 
-#if 1
+#if 0
         printf("e_t_k_n_device_result:\n");
         for(int t = 0; t < tokens; ++t)
         {
