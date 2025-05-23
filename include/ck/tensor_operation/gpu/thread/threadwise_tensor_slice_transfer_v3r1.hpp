@@ -314,6 +314,20 @@ struct ThreadwiseTensorSliceTransfer_v3r1
                 .template SetAsType<dst_vector_t>(src_data_idx_seq,
                                                   op_r_v.template AsType<dst_vector_t>()[I0]);
 
+#if 0
+            auto data_print = src_thread_scratch_tuple_(thread_scratch_id).data_;
+            printf("blkx: %u, blky: %u, tidx: %u, repeatId = %d, src_thread_scratch_tuple_=<%02x, %02x, %02x, "
+                   "%02x>\n",
+                   blockIdx.x,
+                   blockIdx.y,
+                   threadIdx.x,
+                   ordered_src_access_idx[1],
+                   *reinterpret_cast<const uint8_t*>(&data_print[Number<0>{}]),
+                   *reinterpret_cast<const uint8_t*>(&data_print[Number<1>{}]),
+                   *reinterpret_cast<const uint8_t*>(&data_print[Number<2>{}]),
+                   *reinterpret_cast<const uint8_t*>(&data_print[Number<3>{}]));
+#endif
+
             constexpr auto move_on_dim = [&]() constexpr
             {
                 StaticallyIndexedArray<bool, nDim> move_on_dim_;

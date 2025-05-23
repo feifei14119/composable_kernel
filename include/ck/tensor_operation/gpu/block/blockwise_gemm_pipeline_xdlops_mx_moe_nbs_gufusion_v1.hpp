@@ -862,13 +862,13 @@ struct BlockwiseGemmXdlops_pipeline_bns_gufusion_v1<BlockGemmPipelineScheduler::
                                             b_scale_thread_vec_up.template AsType<BScaleDataType>()[Number<0>{}] // error
                                         );*/
                                         // c
-                                        printf("[%d-%d-%d]: %.1f, %.1f, %.1f, %.1f\n",
+                                        /*printf("[%d-%d-%d]: %.1f, %.1f, %.1f, %.1f\n",
                                             ikxdl.value, imxdl.value, inxdl.value, 
                                             type_convert<float>(c_thread_buf.GetVectorTypeReference(Number<c_offset>{}).template AsType<float>()[Number<0>{}]),
                                             type_convert<float>(c_thread_buf.GetVectorTypeReference(Number<c_offset>{}).template AsType<float>()[Number<1>{}]),
                                             type_convert<float>(c_thread_buf.GetVectorTypeReference(Number<c_offset>{}).template AsType<float>()[Number<2>{}]),
                                             type_convert<float>(c_thread_buf.GetVectorTypeReference(Number<c_offset>{}).template AsType<float>()[Number<3>{}])
-                                        );
+                                        );*/
                                     }
                                 }); // NXdlPack
                             });     // MXdlPack

@@ -168,14 +168,14 @@ using DeviceOpInstance                     = ck::tensor_operation::device::Devic
     S<8, 8, 1>, S<1, 0, 2>,     S<1, 0, 2>,    2, 16, 16, 0,
     //2,    2,     S<1, 32, 1, 8>, S<8, 1, 1, 1>,
     2,    2,     S<1, 8, 1, 8>, S<2, 1, 1, 1>,
-    ck::BlockGemmPipelineScheduler::Intrawave, ck::BlockGemmPipelineVersion::v1, 
+    ck::BlockGemmPipelineScheduler::Intrawave, ck::BlockGemmPipelineVersion::v3, 
     ActOP, Nswizzle, true, MulRoutedWeight, ck::index_t, A0DataType>;
 // clang-format on
 
 int main(int argc, char* argv[])
 {
     bool do_verification = true;
-    int init_method      = 1;//7;
+    int init_method      = 2;//7; 
     bool time_kernel     = false;
 
     // per expert:
@@ -309,7 +309,12 @@ int main(int argc, char* argv[])
         b0_e_n_k.GenerateTensorValue(GeneratorTensor_1<B0DataType>{});
         a1_t_k.GenerateTensorValue(GeneratorTensor_1<XDataType>{});
         b1_e_n_k.GenerateTensorValue(GeneratorTensor_1<XDataType>{});
-        d2_e_n.GenerateTensorValue(GeneratorTensor_1<D2DataType>{});
+        d2_e_n.GenerateTensorValue(GeneratorTensor_1<D2DataType>{0.1f});
+
+        //a0_t_k.GenerateTensorValue(GeneratorTensor_2<A0DataType>{-1, 1});
+        //b0_e_n_k.GenerateTensorValue(GeneratorTensor_2<B0DataType>{-5, 5});
+        //a1_t_k.GenerateTensorValue(GeneratorTensor_3<XDataType>{0, 1.0});
+        //b1_e_n_k.GenerateTensorValue(GeneratorTensor_3<XDataType>{0, 1.0});
         break;
     case 3:
         a0_t_k.GenerateTensorValue(GeneratorTensor_2<A0DataType>{-1, 1});
@@ -406,7 +411,7 @@ int main(int argc, char* argv[])
         }
         printf("\n");
     }*/
-    /*printf("scale b: \n");
+    printf("scale b: \n");
     for(int e = 0; e < experts; e++)
     {
         printf("e: %d\n", e);
@@ -435,8 +440,8 @@ int main(int argc, char* argv[])
             }
             printf("\n");
         }
-    }*/
-    /*printf("preshuffled scale b: \n");
+    }
+    printf("preshuffled scale b: \n");
     for(int e = 0; e < experts; e++)
     {
         printf("e: %d\n", e);
@@ -465,7 +470,7 @@ int main(int argc, char* argv[])
             }
             printf("\n");
         }
-    }*/
+    }
 
     sorted_token_ids_dev.ToDevice(sorted_token_ids.mData.data());
     expert_ids_dev.ToDevice(expert_ids.mData.data());
@@ -481,6 +486,31 @@ int main(int argc, char* argv[])
     auto b_element_op   = BElementOp{};
     auto cde_element_op = CDEElementOp{};
 
+    printf("b0_e_n_k:\n");
+    for(int e = 0; e < experts; ++e)
+    {
+        printf("e: %d\n", e);
+        for(int n = 0; n < N; ++n)
+        {
+            //printf("n: %d\n", n);
+            for(int k = 0; k < K; ++k)
+            {
+                auto f4x2 = b0_e_n_k(e, k, n).data;
+                if(k % 2 == 0)
+                {
+                    ck::f4_t f4 = f4x2 >> 4 & 0xf;
+                    printf("%.2f ", ck::type_convert<float>(f4));
+                }
+                else
+                {
+                    ck::f4_t f4 = f4x2 >> 0 & 0xf;
+                    printf("%.2f ", ck::type_convert<float>(f4));
+                }
+            }
+            printf("\n");
+        }
+        printf("\n");
+    }
 #if 0
     printf("a0_t_k_k:\n");
     for(int t = 0; t < tokens; ++t)
@@ -706,15 +736,19 @@ int main(int argc, char* argv[])
 
         e_device_buf.FromDevice(e_t_k_n_device_result.mData.data());
 
-#if 0
+#if 1
         printf("e_t_k_n_device_result:\n");
         for(int t = 0; t < tokens; ++t)
         {
-            for(int n = 0; n < N; ++n)
+            for(int k = 0; k < topk; k++)
             {
-                printf("%.2f ", ck::type_convert<float>(e_t_k_n_device_result(t, n)));
+                printf("[%d,%d]: ", t, k);
+                for(int n = 0; n < N; ++n)
+                {
+                    printf("%.2f ", ck::type_convert<float>(e_t_k_n_device_result(t, k, n)));
+                }
+                printf("\n");
             }
-            printf("\n");
         }
 
         printf("e_t_k_n_host_result:\n");

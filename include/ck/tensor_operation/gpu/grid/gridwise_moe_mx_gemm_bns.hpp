@@ -1559,6 +1559,8 @@ struct GridwiseMoeGemmMXBNS
         // LDS allocation for A and B: be careful of alignment
         constexpr auto a_block_space_size_aligned = math::integer_least_multiple(
             a_block_desc_ak0_m_ak1.GetElementSpaceSize(), max_lds_align);
+        constexpr auto b_block_space_size_aligned = math::integer_least_multiple(
+            b_block_desc_bk0_n_bk1.GetElementSpaceSize(), max_lds_align);
 
         // Cast after lds
         auto a_block_buf = make_dynamic_buffer<AddressSpaceEnum::Lds>(
@@ -1567,6 +1569,12 @@ struct GridwiseMoeGemmMXBNS
         auto b_block_buf = make_dynamic_buffer<AddressSpaceEnum::Lds>(
             reinterpret_cast<BDataType*>(static_cast<char*>(p_shared) +
                                          a_block_space_size_aligned * sizeof(ADataType)),
+            b_block_desc_bk0_n_bk1.GetElementSpaceSize());
+
+        auto b_block_buf_up = make_dynamic_buffer<AddressSpaceEnum::Lds>(
+            reinterpret_cast<BDataType*>(static_cast<char*>(p_shared) +
+                                         a_block_space_size_aligned * sizeof(ADataType) +                                          
+                                         b_block_space_size_aligned * sizeof(BDataType)),
             b_block_desc_bk0_n_bk1.GetElementSpaceSize());
 
         constexpr auto a_block_slice_copy_step = make_multi_index(KPerBlock / AK1Number, 0, 0);
@@ -1634,7 +1642,7 @@ struct GridwiseMoeGemmMXBNS
 
         if constexpr(IsInputGemm)
         {
-            const BDataType* p_b_grid_up = p_b_grid + expert_stride / 2 / BPackedSize;
+            const BDataType* p_b_grid_up = p_b_grid + expert_stride / 2;
             const auto b_grid_buf_up     = make_dynamic_buffer<AddressSpaceEnum::Global>(
                 p_b_grid_up + expert_id * expert_stride,
                 b_grid_desc_bk0_n_bk1.GetElementSpaceSize());
@@ -1669,10 +1677,11 @@ struct GridwiseMoeGemmMXBNS
                     make_multi_index(0, 0, 0),
                     ck::tensor_operation::element_wise::PassThrough{});
 
-            const BScaleDataType* p_b_scale_grid_up = p_b_scale_grid + expert_scale_stride / 2;
+            const BScaleDataType* p_b_scale_grid_up = p_b_scale_grid + expert_scale_stride / 2 / sizeof(BScaleDataType);
             const auto b_scale_grid_buf_up          = make_dynamic_buffer<AddressSpaceEnum::Global>(
-                p_b_scale_grid_up + expert_id * expert_scale_stride,
+                p_b_scale_grid_up + expert_id * expert_scale_stride / sizeof(BScaleDataType),
                 b_scale_grid_desc_bn_ak.GetElementSpaceSize());
+
 
             auto b_scale_thread_copy_up = ThreadwiseTensorSliceTransfer_v2<
                 BScaleDataType,
@@ -1706,6 +1715,7 @@ struct GridwiseMoeGemmMXBNS
                 b_grid_buf,
                 b_grid_buf_up,
                 b_block_buf,
+                b_block_buf_up,
                 b_block_slice_copy_step,
                 // C
                 c_thread_buf,
@@ -1825,7 +1835,7 @@ struct GridwiseMoeGemmMXBNS
                                         }
                                         else if(ActivationOperation == Activation::gelu_and_mul)
                                         {
-                                            float gate = c_thread_buf[cidx];
+                                            /*float gate = c_thread_buf[cidx];
                                             float up   = c_thread_buf_up[cidx];
                                             if constexpr(MulRoutedWeight)
                                             {
@@ -1833,17 +1843,17 @@ struct GridwiseMoeGemmMXBNS
                                                 up   = up * topk_weights.AsType<float>()[m5];
                                             }
                                             tensor_operation::element_wise::Gelu{}(gate, gate);
-                                            c_thread_buf_fp32(cidx) = gate * up;
+                                            c_thread_buf_fp32(cidx) = gate * up;*/
 
-                                            /*float gate = c_thread_buf[cidx];
+                                            float gate = c_thread_buf[cidx];
                                             float up   = c_thread_buf_up[cidx];
                                             if constexpr(MulRoutedWeight)
                                             {
-                                                //gate = gate * topk_weights.AsType<float>()[m5];
+                                                gate = gate * topk_weights.AsType<float>()[m5];
                                                 //up   = up * topk_weights.AsType<float>()[m5];
                                             }
-                                            //tensor_operation::element_wise::Gelu{}(gate, gate);
-                                            c_thread_buf_fp32(cidx) = gate;*/
+                                            tensor_operation::element_wise::Gelu{}(gate, gate);
+                                            c_thread_buf_fp32(cidx) = up;
                                         }
                                     }
                                     else
